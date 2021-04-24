@@ -1,0 +1,5 @@
+ALTER TABLE following
+ADD COLUMN isNoMore BOOLEAN;
+
+ALTER TABLE followers
+ADD COLUMN isNoMore BOOLEAN;

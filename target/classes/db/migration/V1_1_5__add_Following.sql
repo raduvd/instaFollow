@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS following
+(
+    id VARCHAR(50) NOT NULL,
+    PRIMARY KEY (id)
+);
