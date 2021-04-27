@@ -5,6 +5,7 @@ public enum PageAddress {
     INSTAGRAM_RAW("https://www.instagram.com/"),
     INSTAGRAM_MY_ACCOUNT("https://www.instagram.com/raduvd"),
     PE_PLAIURI_ROMANESTI ("https://www.instagram.com/peplaiuri_romanesti/"),
+    TEST("https://www.instagram.com/_crissssssss_/"),
     GENERAL(null);
 
     private PageAddress(String linkToPage) {

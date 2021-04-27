@@ -13,12 +13,11 @@ import java.time.LocalDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PotentialFollower implements Serializable{
+public class PotentialFollower implements Serializable {
 
     @Id
     String id;
 
-    private Boolean isFollower;
     private Boolean isFollowRequested;
     private LocalDate followRequestSentAtDate;
     private Boolean followBackRefused;
@@ -26,9 +25,6 @@ public class PotentialFollower implements Serializable{
     private Integer posts;
     private Integer followers;
     private Integer following;
-
-    public PotentialFollower(String f, boolean b, boolean b1, Object o, boolean b2, boolean b3, Object o1, Object o2, Object o3) {
-        this.id = f;
-
-    }
+    private LocalDate removedFromFollowersAtDate;
+    private Boolean isAccountPrivate;
 }

@@ -4,21 +4,18 @@ import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import ro.personal.home.instafollow.persistance.model.Followers;
+import ro.personal.home.instafollow.persistance.model.Following;
 import ro.personal.home.instafollow.persistance.model.PotentialFollower;
 import ro.personal.home.instafollow.persistance.repository.FollowersJpaRepository;
-import ro.personal.home.instafollow.persistance.repository.FollowingJpaRepository;
 import ro.personal.home.instafollow.persistance.repository.ProcessedPictureJpaRepository;
 import ro.personal.home.instafollow.service.*;
 
-import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @SpringBootTest
 public class AppTest {
-
-    @Autowired
-    private WebDriverService webDriverService;
 
     @Autowired
     private AccountService accountService;
@@ -48,8 +45,7 @@ public class AppTest {
     }
 
     @Test
-    public void testIsNoMoreSave() {
-        followingService.setIsNoMore();
-        followerService.setIsNoMore();
+    public void testIsNumberOfRemovalsPerDayReached() {
+        Assert.assertFalse(potentialFollowersService.isNumberOfRemovalsPerDayReached());
     }
 }

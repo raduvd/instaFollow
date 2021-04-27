@@ -19,7 +19,6 @@ public class WaitDriver {
     }
 
     public static WebElement waitAndGetElement(Boolean continueOnError, By... locator) {
-        sleepForMiliseconds(2000);
         By locatorPresent = waitForElement(continueOnError, locator);
 
         if (locatorPresent == null) {

@@ -1,55 +1,55 @@
 package ro.personal.home.instafollow;
 
-import org.junit.Assert;
+import lombok.Data;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.util.Pair;
 import ro.personal.home.instafollow.enums.PageAddress;
 import ro.personal.home.instafollow.service.AccountService;
-import ro.personal.home.instafollow.service.WebDriverService;
-import ro.personal.home.instafollow.webDriver.model.Page;
+import ro.personal.home.instafollow.service.PageService;
+import ro.personal.home.instafollow.service.PotentialFollowersService;
+import ro.personal.home.instafollow.service.ProcessListService;
 
 import java.util.Collections;
 
+@Data
 @SpringBootTest
 public class MainFlow {
 
     @Autowired
-    private WebDriverService webDriverService;
-
-    @Autowired
     private AccountService accountService;
 
+    @Autowired
+    private PageService pageService;
+
+    @Autowired
+    private ProcessListService processListService;
+
+    @Autowired
+    private PotentialFollowersService potentialFollowersService;
+
     private static final String RADU_VD_USERNAME = "ci52YW5jZWFAeWFob28uY29t";
-    private static final String RADU_VD_1_USERNAME = "cmFkdXZkMQ==";
+    //private static final String RADU_VD_1_USERNAME = "cmFkdXZkMQ=="; //not ready yet for multiple users
 
     @Test
-    public void saveFollowersAndFollowing() {
-        Page page = new Page(PageAddress.INSTAGRAM_RAW, accountService.getAccount(RADU_VD_USERNAME));
-        webDriverService.saveFollowersAndFollowing(page);
+    public void saveFollowersAndRemoveAccountsThatDoNotFollowBack() {
+        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
+        processListService.refreshFollowers();
+        //MANDATORY RUN REFRESH FOLLOWERS BEFORE REMOVING
+        processListService.processFollowingListAndRemoveAccountsThatDoNotFollowBack();
     }
 
     @Test
-    @Ignore
     public void savePotentialFollowers() {
-        Page page = new Page(PageAddress.INSTAGRAM_RAW, accountService.getAccount(RADU_VD_USERNAME));
-        webDriverService.savePotentialFollowersFrom(Collections.singletonList(PageAddress.PE_PLAIURI_ROMANESTI), 1, page);
+        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
+        processListService.savePotentialFollowersFrom(Collections.singletonList(PageAddress.INSTAGRAM_RAW), 0);
     }
 
     @Test
-    @Ignore
     public void followPotentialFollowers() {
-        Page page = new Page(PageAddress.INSTAGRAM_RAW, accountService.getAccount(RADU_VD_USERNAME));
-        webDriverService.followPotentialFollowers(page, Integer.MAX_VALUE);
-    }
-
-    @Test
-    @Ignore
-    public void removeFollowersThatDoNotFollowBack() {
-        Page page = new Page(PageAddress.INSTAGRAM_RAW, accountService.getAccount(RADU_VD_USERNAME));
-        webDriverService.removeFollowersThatDoNotFollowBack();
+        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
+        potentialFollowersService.followPotentialFollowers(Integer.MAX_VALUE);
     }
 
     @Test
@@ -59,8 +59,9 @@ public class MainFlow {
     }
 
     @Test
-    public void loginWithCookies() {
-
-        Page page = new Page(PageAddress.PE_PLAIURI_ROMANESTI, accountService.getAccount(RADU_VD_1_USERNAME));
+    public void analiseFollowRequestResults() {
+        //Best to be rolled after refreshingFollowers and removing followers!!!
+        potentialFollowersService.analiseFollowRequestResults();
     }
+
 }
