@@ -36,14 +36,6 @@ public class PotentialFollowersService {
     @Autowired
     private PotentialFollowersJpaRepository potentialFollowersJpaRepository;
 
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MAXIMUM_FOLLOWERS = 2500;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MAXIMUM_FOLLOWINGS = 2500;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_FOLLOWINGS = 100;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_FOLLOWERS = 100;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_POSTS = 10;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MAXIMUM_DIFERENCE_BETWEEN_FOLLOWERS_MINUS_FOLLOWING = 200;
-
-
     //This will go back from an element from USERNAMES_FROM_LIST to its correspon
     private static final By LIKE = By.xpath("//*[@aria-label='Like' and @height=24]");
     private static final By UNLIKE = By.xpath("//*[@aria-label='Unlike']");
@@ -68,7 +60,7 @@ public class PotentialFollowersService {
             //GO to profile page
             pageService.goToPage(WebDriverUtil.createPageAddress(potentialFollower.getId()));
 
-            if (!isAccountPrivate()) {
+            if (!potentialFollower.getIsAccountPrivate()) {
                 //click on first picture and like it
                 List<WebElement> pagePictures = WaitDriver.waitAndGetElements(true, WebDriverUtil.PAGE_PICTURES);
                 pageService.clickByMovingOnElement(pagePictures.get(0));
@@ -109,11 +101,6 @@ public class PotentialFollowersService {
             return true;
         }
         return false;
-    }
-
-
-    private boolean isAccountPrivate() {
-        return WaitDriver.waitAndGetElement(true, THIS_ACCOUNT_IS_PRIVATE) != null;
     }
 
     /**

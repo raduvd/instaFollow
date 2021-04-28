@@ -79,12 +79,12 @@ public class ProcessListService {
     }
 
     /**
-     * @param pageAddresses           Ex: 'Pe Plaiuri Romanesti' profile page, from where I will get a the last post and check the users that have liked it.
-     * @param pictureIndexFromProfile the profile has a multitude of picture, this index will chose one of these pictures. Usually this is zero always.
+     * @param pageAddress           Ex: 'Pe Plaiuri Romanesti' profile page, from where I will get a the last post and check the users that have liked it.
+     * @param pictureIndexesFromProfile the profile has a multitude of picture, this index will chose which one of these pictures is being processed
      */
-    public void savePotentialFollowersFrom(List<PageAddress> pageAddresses, Integer pictureIndexFromProfile) {
+    public void savePotentialFollowersFrom(PageAddress pageAddress, Integer... pictureIndexesFromProfile) {
 
-        for (PageAddress pageAddress : pageAddresses) {
+        for (Integer picIndex : pictureIndexesFromProfile) {
             //Go to page/profile
             pageService.goToPage(pageAddress.getLinkToPage());
 
@@ -92,12 +92,12 @@ public class ProcessListService {
             List<WebElement> pagePictures = WaitDriver.waitAndGetElements(false, WebDriverUtil.PAGE_PICTURES);
 
             //Get the picture according to pictureIndexFromProfile
-            validatePictureIndex(pagePictures, pictureIndexFromProfile);
-            WebElement pictureFromProfile = pagePictures.get(pictureIndexFromProfile);
+            validatePictureIndex(pagePictures, picIndex);
+            WebElement pictureFromProfile = pagePictures.get(picIndex);
             ProcessedPicture processedPicture = getOrSavePictureEntity(pictureFromProfile, pageAddress);
             if (isPictureInvalid(processedPicture)) {
                 pageService.getResult().getMessages().add(
-                        "Picture index " + pictureIndexFromProfile + " from profile " +
+                        "Picture index " + picIndex + " from profile " +
                                 pageAddress + "was not processed because it is already processed");
                 continue;
             }

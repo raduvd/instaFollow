@@ -11,8 +11,6 @@ import ro.personal.home.instafollow.service.PageService;
 import ro.personal.home.instafollow.service.PotentialFollowersService;
 import ro.personal.home.instafollow.service.ProcessListService;
 
-import java.util.Collections;
-
 @Data
 @SpringBootTest
 public class MainFlow {
@@ -33,7 +31,19 @@ public class MainFlow {
     //private static final String RADU_VD_1_USERNAME = "cmFkdXZkMQ=="; //not ready yet for multiple users
 
     @Test
-    public void saveFollowersAndRemoveAccountsThatDoNotFollowBack() {
+    public void step1SavePotentialFollowers() {
+        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
+        processListService.savePotentialFollowersFrom(PageAddress.PE_PLAIURI_ROMANESTI, 0, 1, 2);
+    }
+
+    @Test
+    public void step2FollowPotentialFollowers() {
+        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
+        potentialFollowersService.followPotentialFollowers(Integer.MAX_VALUE);
+    }
+
+    @Test
+    public void step3SaveFollowersAndRemoveAccountsThatDoNotFollowBack() {
         pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
         processListService.refreshFollowers();
         //MANDATORY RUN REFRESH FOLLOWERS BEFORE REMOVING
@@ -41,15 +51,9 @@ public class MainFlow {
     }
 
     @Test
-    public void savePotentialFollowers() {
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-        processListService.savePotentialFollowersFrom(Collections.singletonList(PageAddress.INSTAGRAM_RAW), 0);
-    }
-
-    @Test
-    public void followPotentialFollowers() {
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-        potentialFollowersService.followPotentialFollowers(Integer.MAX_VALUE);
+    public void step4AnaliseFollowRequestResults() {
+        //Best to be rolled after refreshingFollowers and removing followers!!!
+        potentialFollowersService.analiseFollowRequestResults();
     }
 
     @Test
@@ -57,11 +61,4 @@ public class MainFlow {
     public void createNewAccountDBEntry() {
         accountService.saveAccount("", "");
     }
-
-    @Test
-    public void analiseFollowRequestResults() {
-        //Best to be rolled after refreshingFollowers and removing followers!!!
-        potentialFollowersService.analiseFollowRequestResults();
-    }
-
 }
