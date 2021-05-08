@@ -29,4 +29,5 @@ public class PotentialFollower implements Serializable {
     private Boolean isAccountPrivate;
     private Boolean removalConfirmed;
     private Boolean followRequestSentConfirmed;
+    private Boolean pageCanBeOpened;
 }

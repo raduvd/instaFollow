@@ -8,7 +8,6 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebElement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.SocketUtils;
 import org.springframework.util.StringUtils;
 import ro.personal.home.instafollow.enums.ElementValue;
 import ro.personal.home.instafollow.enums.ListType;
@@ -20,7 +19,6 @@ import ro.personal.home.instafollow.persistance.repository.ProcessedPictureJpaRe
 import ro.personal.home.instafollow.webDriver.webDriver.AppWebDriver;
 import ro.personal.home.instafollow.webDriver.webDriver.WaitDriver;
 
-import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -48,6 +46,11 @@ public class ProcessListService {
      * Ex: If more that 2 days pass and the user does not follow back, we remove him.
      */
     public static Integer NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER = 2;
+    /**
+     * A profile has a multitude of picture, this index will indicate which one of these pictures are being processed.
+     * Zero represent the latest photo.
+     */
+    private static Integer[] pictureIndexesToProcess = {0, 1, 2, 3, 4, 5};
 
     private static final By FOLLOWING_NUMBER = By.xpath("//div/span[text()=' following']/span");
     private static final By FOLLOWERS_NUMBER = By.xpath("//div/span[text()=' followers']/span");
@@ -64,7 +67,6 @@ public class ProcessListService {
     private static final By MY_FOLLOWERS_NUMBER = By.xpath("//a[@href='/raduvd/followers/']/span");
     private static final By MY_FOLLOWING_MAIN_BUTTON = By.xpath("//a[@href='/raduvd/following/']");
     private static final By MY_FOLLOWING_NUMBER = By.xpath("//a[@href='/raduvd/following/']/span");
-    private static final By PRIVATE_ACCOUNT_TEXT = By.xpath("//*[text()='The Account is Private']");
     //navigate from the link of an element backwards to its button (Follow, Remove or any)
     private static final By LIST_ELEMENT_BUTTON = By.xpath("../../../../../div[2]/button");
     private static final By LIST_ELEMENT_BUTTON_2 = By.xpath("../../../../../..//div[3]/button");
@@ -80,12 +82,19 @@ public class ProcessListService {
     }
 
     /**
-     * @param pageAddress               Ex: 'Pe Plaiuri Romanesti' profile page, from where I will get a the last post and check the users that have liked it.
-     * @param pictureIndexesFromProfile the profile has a multitude of picture, this index will chose which one of these pictures is being processed
+     * @param pageAddress             Ex: 'Pe Plaiuri Romanesti' profile page, from where I will get a the last post and check the users that have liked it.
+     * @param targetNumberOfFollowers
      */
-    public void savePotentialFollowersFrom(PageAddress pageAddress, Integer... pictureIndexesFromProfile) {
+    public void savePotentialFollowersFrom(PageAddress pageAddress, Integer targetNumberOfFollowers) {
 
-        for (Integer picIndex : pictureIndexesFromProfile) {
+
+        for (Integer picIndex : pictureIndexesToProcess) {
+
+            //If I have the targetNumberOfFollowers, do not continue with the next pictures
+            if (potentialFollowersService.getPotentialFollowersJpaRepository().getAllForFollowing().size()
+                    >= targetNumberOfFollowers)
+                break;
+
             //Go to page/profile
             pageService.goToPage(false, pageAddress.getLinkToPage());
 
@@ -115,6 +124,7 @@ public class ProcessListService {
         }
     }
 
+    //DO not remove yet, even if it is not used, because the logic of processing followings may be needed.
     public void processFollowingListAndRemoveAccountsThatDoNotFollowBack() {
 
         pageService.goToPage(false, PageAddress.INSTAGRAM_MY_ACCOUNT.getLinkToPage());
@@ -166,7 +176,7 @@ public class ProcessListService {
         boolean isUserAPotentialFollower = potentialFollowersService.getOptionalById(potentialFollower.getId()).isPresent();
         if (isUserAFollower || isUserAPotentialFollower) return false;
 
-        boolean isAccountPrivate = null != WaitDriver.waitAndGetElement(true, PRIVATE_ACCOUNT_TEXT);
+        boolean isAccountPrivate = null != WaitDriver.waitAndGetElement(true, WebDriverUtil.PRIVATE_ACCOUNT_TEXT);
 
         Integer followers = (Integer) pageService.getValueFromElement(false, ElementValue.NUMBER_WITH_K_COMA_OR_POINT, FOLLOWERS_NUMBER, FOLLOWER_NUMBER);
         Integer following = (Integer) pageService.getValueFromElement(false, ElementValue.NUMBER_WITH_K_COMA_OR_POINT, FOLLOWING_NUMBER);
@@ -271,6 +281,7 @@ public class ProcessListService {
             potentialFollower.setIsFollowRequested(false);
             potentialFollower.setFollowBackRefused(false);
             potentialFollower.setIsRejectedDueToValidation(false);
+            potentialFollower.setPageCanBeOpened(true);
 
             potentialFollower.setRemovalConfirmed(false);
             potentialFollower.setFollowRequestSentConfirmed(false);
@@ -290,68 +301,8 @@ public class ProcessListService {
     }
 
     private Set<String> followingListLogic(WebElement listElement, String userName) {
-        Set<String> removedUsers = new TreeSet<>();
-
-        if (removeUserQuestionMark(userName)) {
-
-            WebElement button = pageService.findSubElementBy(false, listElement, LIST_ELEMENT_BUTTON, LIST_ELEMENT_BUTTON_2);
-            button.click();
-            pageService.waitForButtonAndClickIt(true, WebDriverUtil.UNFOLLOW_CONFIRMATION);
-
-            PotentialFollower potentialFollower = potentialFollowersService.getOptionalById(userName).get();
-            potentialFollower.setFollowBackRefused(true);
-            potentialFollower.setRemovedFromFollowersAtDate(LocalDate.now());
-            potentialFollower.setRemovalConfirmed(false);
-            potentialFollowersService.saveOne(potentialFollower);
-            removedUsers.add(userName);
-            WaitDriver.sleepForMiliseconds(30000);
-        }
-        return removedUsers;
-    }
-
-    public boolean removeUserQuestionMark(String userId) {
-
-        if (potentialFollowersService.isNumberOfRemovalsPerDayReached()) {
-            System.out.println("USER " + userId + " WAS *NOT* REMOVED BECAUSE THE NUMBER PER DAY REMOVALS *WAS* REACHED.");
-            return false;
-        }
-
-        Optional<PotentialFollower> potentialFollowerOptional = potentialFollowersService.getOptionalById(userId);
-
-        //We remove only users from potentialFollowers, not user added by me manually. So if this is empathy we do not remove.
-        boolean isUserAPotentialFollower = potentialFollowerOptional.isPresent();
-        if (!isUserAPotentialFollower) {
-            System.out.println("USER " + userId + " WAS *NOT* REMOVED BECAUSE HE IS *NOT* A POTENTIAL FOLLOWER (WAS ADDED MANUALLY BY ME).");
-            return false;
-        }
-
-        boolean wasFollowRequestSent = potentialFollowerOptional.get().getFollowRequestSentAtDate() != null;
-
-        if (!wasFollowRequestSent) {
-            System.out.println("USER " + userId + " WAS *NOT* REMOVED BECAUSE THE THE FOLLOW REQUEST WAS NOT SENT");
-            return false;
-        }
-
-        LocalDate followRequestSentAtDate = potentialFollowerOptional.get().getFollowRequestSentAtDate();
-        LocalDate currentTimeMinusXDays = LocalDate.now().minusDays(NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER);
-        boolean followRequestSentLessThan2DaysAgo = followRequestSentAtDate.isAfter(currentTimeMinusXDays);
-        if (followRequestSentLessThan2DaysAgo) {
-            System.out.println("USER " + userId + " WAS *NOT* REMOVED BECAUSE THE REQUEST IS RECENT, WE HAVE TO WAIT MORE BEFORE REMOVING. REQUEST DATE: " + followRequestSentAtDate);
-            return false;
-        }
-
-        if (followerService.isUserInMyFollowerList(userId)) {
-            System.out.println("USER " + userId + " WAS NOT REMOVED BECAUSE HE IS IN MY FOLLOWERS LIST.");
-            return false;
-        }
-        //If we reach here it means that the user is:
-        //1. A potential follower and we can remove him. If he was not a potential follower we couldn't remove him.
-        //2. Has a request sent more than 2 days ago.
-        //3. We have more to go until 50 REMOVALS today, and we can go on.
-        //4. The user is not in my followers list (does not follow back). So we can safely delete him.
-        //5. The user has a Follow request sent (this is obvious if I process the following list, but non the less this is checked too).
-        System.out.println("********************************WE CAN SAFELY DELETE THIS USER: " + userId);
-        return true;
+        System.out.println("Do Nothing - To be implemented");
+        return Collections.emptySet();
     }
 
     private void validatePictureIndex(List<WebElement> pagePictures, Integer pictureIndexFromProfile) {

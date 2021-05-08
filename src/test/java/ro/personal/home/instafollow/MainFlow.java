@@ -56,36 +56,13 @@ public class MainFlow {
     }
 
     @Test
-    public void step2RemoveAccountsThatDoNotFollowBack() {
-
-        //Process followers list before adding new accounts, because it is more error free
+    public void processPotentialFollowers() {
         pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-        //MANDATORY RUN REFRESH FOLLOWERS BEFORE REMOVING
-        processListService.processFollowingListAndRemoveAccountsThatDoNotFollowBack();
+        potentialFollowersService.step3RemoveOrFollow();
     }
 
     @Test
-    public void step3ConfirmRemovals() {
-
-        //TODO run this only if there are inconsistencies (if not all were removed)
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-        potentialFollowersService.confirmRemovedUsers(2);
-    }
-
-    @Test
-    public void step4SavePotentialFollowers() {
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-        processListService.savePotentialFollowersFrom(PageAddress.PE_PLAIURI_ROMANESTI, 0, 1);
-    }
-
-    @Test
-    public void step5FollowPotentialFollowers() {
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-        potentialFollowersService.followPotentialFollowers(Integer.MAX_VALUE);
-    }
-
-    @Test
-    public void step6AnaliseFollowRequestResults() {
+    public void step3AnaliseFollowRequestResults() {
         //Best to be rolled after refreshingFollowers and removing followers!!!
         potentialFollowersService.analiseFollowRequestResults();
     }
@@ -94,11 +71,5 @@ public class MainFlow {
     @Ignore
     public void createNewAccountDBEntry() {
         accountService.saveAccount("", "");
-    }
-
-    @Test
-    public void processPotentialFollowers() {
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-        potentialFollowersService.step3RemoveOrFollow();
     }
 }

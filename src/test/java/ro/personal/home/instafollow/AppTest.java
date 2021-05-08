@@ -1,18 +1,13 @@
 package ro.personal.home.instafollow;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import ro.personal.home.instafollow.persistance.model.Followers;
-import ro.personal.home.instafollow.persistance.model.Following;
-import ro.personal.home.instafollow.persistance.model.PotentialFollower;
-import ro.personal.home.instafollow.persistance.repository.FollowersJpaRepository;
 import ro.personal.home.instafollow.persistance.repository.ProcessedPictureJpaRepository;
-import ro.personal.home.instafollow.service.*;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import ro.personal.home.instafollow.service.AccountService;
+import ro.personal.home.instafollow.service.FollowerService;
+import ro.personal.home.instafollow.service.FollowingService;
+import ro.personal.home.instafollow.service.PotentialFollowersService;
 
 @SpringBootTest
 public class AppTest {
@@ -32,20 +27,8 @@ public class AppTest {
     @Autowired
     private ProcessedPictureJpaRepository processedPictureJpaRepository;
 
-    @Test
-    public void testGetFollowersFromDB() {
-        List<PotentialFollower> potentialFollowerForFollowing = potentialFollowersService.getPotentialFollowerForFollowing();
-        Assert.assertNotNull(potentialFollowerForFollowing);
-        Assert.assertFalse(potentialFollowerForFollowing.isEmpty());
-        Assert.assertTrue(
-                potentialFollowerForFollowing.stream().
-                        allMatch(potentialFollower ->
-                                potentialFollower.getIsFollowRequested() == false
-                                        && potentialFollower.getIsRejectedDueToValidation() == false));
-    }
 
     @Test
-    public void testIsNumberOfRemovalsPerDayReached() {
-        Assert.assertFalse(potentialFollowersService.isNumberOfRemovalsPerDayReached());
+    public void test() {
     }
 }

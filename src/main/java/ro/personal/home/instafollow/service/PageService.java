@@ -13,11 +13,10 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
 import ro.personal.home.instafollow.enums.ElementValue;
 import ro.personal.home.instafollow.enums.PageAddress;
+import ro.personal.home.instafollow.persistance.model.PotentialFollower;
+import ro.personal.home.instafollow.persistance.repository.PotentialFollowersJpaRepository;
 import ro.personal.home.instafollow.webDriver.webDriver.AppWebDriver;
 import ro.personal.home.instafollow.webDriver.webDriver.WaitDriver;
-
-import java.util.Arrays;
-import java.util.stream.Collectors;
 
 @Data
 @Component
@@ -39,10 +38,13 @@ public class PageService {
 
     private AccountService accountService;
 
+    private PotentialFollowersJpaRepository potentialFollowersJpaRepository;
+
     @Autowired
-    public PageService(CookieService cookieService, AccountService accountService) {
+    public PageService(CookieService cookieService, AccountService accountService, PotentialFollowersJpaRepository potentialFollowersJpaRepository) {
         this.cookieService = cookieService;
         this.accountService = accountService;
+        this.potentialFollowersJpaRepository = potentialFollowersJpaRepository;
     }
 
     /**
@@ -120,30 +122,32 @@ public class PageService {
         return true;
     }
 
+    public boolean goToPotentialFollowerPage(PotentialFollower potentialFollower) {
+        String pageAddress = WebDriverUtil.createPageAddress(potentialFollower.getId());
+        if (!goToPage(true, pageAddress)) {
+            potentialFollower.setPageCanBeOpened(false);
+            potentialFollowersJpaRepository.saveAndFlush(potentialFollower);
+            return false;
+        }
+        return true;
+    }
+
+    //There are several reasons why I cannot go to the page:
+    //  *The user has blocked me (this happens a lot actually).
+    //  *Instagram has blocked me.
+    //  *The page does not exist, simply the account was erased.
+    //  *There is an error in the URL, so better not mess with these.
+    //TODO pages that do not oppen eg: https://www.instagram.com/bradcalin https://www.instagram.com/jasminka_2021
+    //          and the follow request is not sent, just remove them from DB, if the follow request is already sent,
+    //          this means that the page opend once so just try again
+    //           or maybe I just need a backslash? try this before going deeper
+    //          DO NOT just leave it like this because it seems that is NOT something from instagram,
+    //          every time it does not work
+
     private static final By PAGE_UNAVAILABLE = By.xpath("//a[text()='Go back to Instagram.']");
 
     private boolean isPageAvailable() {
         return WaitDriver.waitForElement(true, PAGE_UNAVAILABLE) == null;
-    }
-
-    public WebElement findSubElementBy(Boolean continueOnError, WebElement parentElement, By... locators) {
-
-        WebElement subelement = null;
-        int locatorsSize = locators.length;
-
-        for (int i = 0; i < locatorsSize; i++) {
-            try {
-                System.out.println("Trying to find element by" + locators[i].toString());
-                return parentElement.findElement(locators[i]);
-
-            } catch (Exception e) {
-                System.out.println("Element was not found BY: " + locators[i].toString());
-                if (i + 1 >= locatorsSize && !continueOnError)
-                    throw new RuntimeException("The element was not found using the following locatos: " +
-                            Arrays.stream(locators).map(by -> by.toString()).collect(Collectors.toList()));
-            }
-        }
-        return subelement;
     }
 
     public void waitForButtonAndClickIt(Boolean continueOnError, By... locator) {

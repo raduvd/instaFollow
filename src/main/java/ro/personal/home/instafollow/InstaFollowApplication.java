@@ -6,6 +6,11 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /*
 THE APP SERVICES ARE WORKING JUST SOME DETAILS / tasks / improvements:
+////TODO the analyse logic is not good redo it
+//TODO update the result analisis logic to take only confirmed
+    //TODO check how many of the request are not being processed, this is shown in the logs and maybe wait more and see if it improoves, or combine them, a follow then a removal and so on
+    //TODO after a month or a week check in the DB- all should have confirmedRemoval = true and confirmedFoloowing = true, if not the logic is not good
+
 //TODO - the potentialFOllower table is not consistent because isFollowRequested and
    followRequestSentAtDate are filled but the request is not sent because some instagram restriction. I use the table to devise the report and other places
    All should be good but the report where I should not use these fields, but the confirmed removed accounts and the followers that I have.
