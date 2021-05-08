@@ -27,4 +27,6 @@ public class PotentialFollower implements Serializable {
     private Integer following;
     private LocalDate removedFromFollowersAtDate;
     private Boolean isAccountPrivate;
+    private Boolean removalConfirmed;
+    private Boolean followRequestSentConfirmed;
 }

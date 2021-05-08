@@ -57,7 +57,7 @@ public class CookieService {
             cookieList.add(cookie);
         }
 
-        cookieJpaRepository.deleteAllByUserName(user);
+        //cookieJpaRepository.deleteAllByUserName(user);
         cookieJpaRepository.saveAll(cookieList);
         cookieJpaRepository.flush();
     }

@@ -13,9 +13,11 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
 import ro.personal.home.instafollow.enums.ElementValue;
 import ro.personal.home.instafollow.enums.PageAddress;
-import ro.personal.home.instafollow.webDriver.model.Result;
 import ro.personal.home.instafollow.webDriver.webDriver.AppWebDriver;
 import ro.personal.home.instafollow.webDriver.webDriver.WaitDriver;
+
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 @Data
 @Component
@@ -33,8 +35,6 @@ public class PageService {
 
     private WebDriver webDriver;
 
-    private Result result;
-
     private CookieService cookieService;
 
     private AccountService accountService;
@@ -51,22 +51,21 @@ public class PageService {
      */
     public void initializePage(PageAddress pageAddress, String userName, Boolean useCookiesToLogin) {
 
-        this.result = new Result();
         this.webDriver = AppWebDriver.getWebDriver();
 
         Pair<String, String> account = accountService.getAccount(userName);
 
-        goToPage(PageAddress.INSTAGRAM_RAW.getLinkToPage());
+        goToPage(false, PageAddress.INSTAGRAM_RAW.getLinkToPage());
         cookieService.loadCookies(userName);
-        goToPage(pageAddress.getLinkToPage());
+        goToPage(false, pageAddress.getLinkToPage());
 
         if (!useCookiesToLogin) {
             //Go to main login page
-            goToPage(PageAddress.INSTAGRAM_RAW.getLinkToPage());
+            goToPage(false, PageAddress.INSTAGRAM_RAW.getLinkToPage());
             loginAndHandlePopUps(account);
             cookieService.saveCookies(userName);
             //Go to initial page
-            goToPage(pageAddress.getLinkToPage());
+            goToPage(false, pageAddress.getLinkToPage());
         }
     }
 
@@ -107,9 +106,44 @@ public class PageService {
         actions.moveToElement(element).click().perform();
     }
 
-    public void goToPage(String pageAddress) {
-        System.out.println("------------------------------------ We will try to open the following link: " + pageAddress);
+    public boolean goToPage(Boolean wait, String pageAddress) {
+        int timeToWait = wait ? 25000 : 0;
+        System.out.println("------------------------------------ We will try to open the following link: " + pageAddress +
+                " after waiting milliseconds:" + timeToWait);
+        WaitDriver.sleepForMiliseconds(timeToWait);
         webDriver.get(pageAddress);
+
+        if (wait && !isPageAvailable()) {
+            System.out.println("The page (" + pageAddress + ") was unavailable.");
+            return false;
+        }
+        return true;
+    }
+
+    private static final By PAGE_UNAVAILABLE = By.xpath("//a[text()='Go back to Instagram.']");
+
+    private boolean isPageAvailable() {
+        return WaitDriver.waitForElement(true, PAGE_UNAVAILABLE) == null;
+    }
+
+    public WebElement findSubElementBy(Boolean continueOnError, WebElement parentElement, By... locators) {
+
+        WebElement subelement = null;
+        int locatorsSize = locators.length;
+
+        for (int i = 0; i < locatorsSize; i++) {
+            try {
+                System.out.println("Trying to find element by" + locators[i].toString());
+                return parentElement.findElement(locators[i]);
+
+            } catch (Exception e) {
+                System.out.println("Element was not found BY: " + locators[i].toString());
+                if (i + 1 >= locatorsSize && !continueOnError)
+                    throw new RuntimeException("The element was not found using the following locatos: " +
+                            Arrays.stream(locators).map(by -> by.toString()).collect(Collectors.toList()));
+            }
+        }
+        return subelement;
     }
 
     public void waitForButtonAndClickIt(Boolean continueOnError, By... locator) {

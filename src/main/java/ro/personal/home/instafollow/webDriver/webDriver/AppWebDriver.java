@@ -9,7 +9,7 @@ public class AppWebDriver {
     /**
      * Aici am pathul local (de pe PC) catre chromedriver.exe
      */
-    private static final String CHROMEDRIVER_EXECUTABLE = "C:\\Users\\vancer\\Desktop\\Libraryes & Sources\\chromedriver_win32\\chromedriver.exe";
+    private static final String CHROMEDRIVER_EXECUTABLE = "C:\\Users\\rvanc\\Desktop\\Libraryes & Sources\\chromedriver_win32\\chromedriver.exe";
     private static org.openqa.selenium.WebDriver webDriver;
 
     private AppWebDriver() {

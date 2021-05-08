@@ -46,6 +46,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>1.18.20</version>
             <optional>true</optional>
         </dependency>
         <dependency>
@@ -86,6 +87,7 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -97,6 +99,7 @@
                 <version>4.0.3</version>
             </plugin>
         </plugins>
+        </pluginManagement>
     </build>
 
 </project>
