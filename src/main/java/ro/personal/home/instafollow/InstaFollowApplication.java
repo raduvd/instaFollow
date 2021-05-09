@@ -6,28 +6,27 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /*
 THE APP SERVICES ARE WORKING JUST SOME DETAILS / tasks / improvements:
-////TODO the analyse logic is not good redo it
 //TODO update the result analisis logic to take only confirmed
-    //TODO check how many of the request are not being processed, this is shown in the logs and maybe wait more and see if it improoves, or combine them, a follow then a removal and so on
-    //TODO after a month or a week check in the DB- all should have confirmedRemoval = true and confirmedFoloowing = true, if not the logic is not good
-
-//TODO - the potentialFOllower table is not consistent because isFollowRequested and
-   followRequestSentAtDate are filled but the request is not sent because some instagram restriction. I use the table to devise the report and other places
-   All should be good but the report where I should not use these fields, but the confirmed removed accounts and the followers that I have.
-//TODO - after some time check what accounts did not followed back and adjust validation of follow request sending. THIS IS MANDATORY BECAUSE I HAVE some high values over there and they need to be tighte
+//TODO replace all prints with logs:
+    - use spring logging https://www.baeldung.com/spring-boot-logging
+    - Make 2 or 3 kinds of logs. only the most important should be put in console, the rest in a log file
+//TODO ANALIZE PERIODICALLY
+   - check how many of the request are not being processed, this is shown in the logs and maybe wait more and see
+        if it improoves, or combine them, a follow then a removal and so on. Maybe at some point i can remove the confirmation
+    - after a month or a week check in the DB- all should have confirmedRemoval = true and confirmedFoloowing = true,
+        if not the logic is not good
+    - after some time check what accounts did not followed back and adjust validation of follow request sending.
+        THIS IS MANDATORY BECAUSE I HAVE some high values over there and they need to be tighte
 //TODO go trough all files and:
         - check for all todos
         - check logic, how can it be imrpoved:
+            - like you do at work before comiting to a reviewer
             - make a final review and add todos
             - the errors that you throw are not nice, make it another way
         - check warnings, and remove
         - remove all unused methods, and fields
         - breakdonww classes and methods into smaller - each method should have a single logic and to be clear
         - commit
-//TODO replace all prints with logs:
-    - use spring logging https://www.baeldung.com/spring-boot-logging
-    - Make 2 or 3 kinds of logs. only the most important should be put in console, the rest in a log file
-    - FOR THIS REMOVE THE rESULT ENTITY? AND THE PRINT LOGIC? SEE WHERE IT IS USED
 //TODO - The App is build for raduvd: there are By locators that specifically search this username + the DB tables handle one account
 //TODO - when processing list I must not move the mouse around, because there will be errors.
 //TODO ◦ When the app is really stable, Automate to maximum by following the steps:

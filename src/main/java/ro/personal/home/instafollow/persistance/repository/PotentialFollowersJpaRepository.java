@@ -27,28 +27,10 @@ public interface PotentialFollowersJpaRepository extends JpaRepository<Potential
             "WHERE id NOT IN (SELECT pf.id FROM potentialfollowers pf JOIN followers f ON pf.id = f.id WHERE f.isNoMore = false) " +
             "AND (removalconfirmed IS null OR removalconfirmed = false) " +
             "AND removedFromFollowersAtDate IS NOT null " +
-            "AND removedFromFollowersAtDate = NOW() " +
+            "AND removedFromFollowersAtDate <> NOW() " +
             "AND pageCanBeOpened = true " +
             "ORDER BY removedFromFollowersAtDate", nativeQuery = true)
     List<PotentialFollower> getAllForConfirmingRemoval();
-
-    /**
-     *
-     * @return a list with all {@link PotentialFollower}
-     * that are not in the Followers table,
-     * that are not confirmed from following
-     * that have an openable page
-     * and that I have followed them less than 2 days ago - have a followRequestSentAtDate newer than 2 days ago.
-     * and also removedFromFollowersAtDate is NULL
-     */
-    @Query(value = "SELECT * FROM public.potentialfollowers " +
-            "WHERE id NOT IN (SELECT pf.id FROM potentialfollowers pf JOIN followers f ON pf.id = f.id WHERE f.isNoMore = false) " +
-            "AND (followrequestsentconfirmed IS null OR followrequestsentconfirmed = false) " +
-            "AND removedFromFollowersAtDate IS null " +
-            "AND followRequestSentAtDate > NOW() - INTERVAL '2 DAY' " +
-            "AND pageCanBeOpened = true" +
-            "ORDER BY followRequestSentAtDate", nativeQuery = true)
-    List<PotentialFollower> getAllForConfirmingFollowing();
 
     /**
      *
@@ -64,7 +46,7 @@ public interface PotentialFollowersJpaRepository extends JpaRepository<Potential
             "AND (followrequestsentconfirmed IS null OR followrequestsentconfirmed = false) " +
             "AND removedFromFollowersAtDate IS null " +
             "AND followRequestSentAtDate < NOW() - INTERVAL '2 DAY' " +
-            "AND pageCanBeOpened = true" +
+            "AND pageCanBeOpened = true " +
             "ORDER BY followRequestSentAtDate", nativeQuery = true)
     List<PotentialFollower> getAllForRemoval();
 

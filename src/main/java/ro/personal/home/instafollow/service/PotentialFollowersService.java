@@ -7,18 +7,17 @@ import org.openqa.selenium.WebElement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import ro.personal.home.instafollow.dto.ProcessResult;
 import ro.personal.home.instafollow.enums.Button;
 import ro.personal.home.instafollow.enums.PageAddress;
 import ro.personal.home.instafollow.enums.Process;
 import ro.personal.home.instafollow.persistance.model.PotentialFollower;
+import ro.personal.home.instafollow.persistance.model.Result;
 import ro.personal.home.instafollow.persistance.repository.PotentialFollowersJpaRepository;
 import ro.personal.home.instafollow.webDriver.webDriver.WaitDriver;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -43,6 +42,9 @@ public class PotentialFollowersService {
     @Autowired
     private ProcessListService processListService;
 
+    @Autowired
+    private ResultService resultService;
+
     private static final Integer REMOVALS_PER_DAY = 100;
     private static final Integer FOLLOW_REQUESTS_PER_DAY = 100;
     /**
@@ -60,21 +62,12 @@ public class PotentialFollowersService {
      * that I have already sent a removal request (but not today).
      * It will either confirm the removal, or remove again if the removal was not processed by Instagram.
      */
-    public void step1ConfirmRemovals() {
+    public void step2ConfirmRemovals() {
+        System.out.println("-------------------------CONFIRM REMOVALS------------------------");
+
         processPotentialFollowers(
                 potentialFollowersJpaRepository.
                         getAllForConfirmingRemoval(), this::isNumberOfRemovalsPerDayReached, Process.CONFIRM_REMOVING);
-    }
-
-    /**
-     * This method will go trough a {@link List} of {@link PotentialFollower} that I have already sent a follow request,
-     * and *NO* more than {@link ProcessListService#NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER} have passed.
-     * It will either confirm the following, or send again if the following was not processed by Instagram.
-     */
-    public void step2ConfirmFollowing() {
-        processPotentialFollowers(
-                potentialFollowersJpaRepository.
-                        getAllForConfirmingFollowing(), this::isNumberOfFollowsPerDayReached, Process.CONFIRM_FOLLOWING);
     }
 
     /**
@@ -83,6 +76,8 @@ public class PotentialFollowersService {
      * It will either remove, or follow again if the following was not processed by Instagram.
      */
     public void step3RemoveOrFollow() {
+        System.out.println("-------------------------REMOVE OR FOLLOW------------------------");
+
         processPotentialFollowers(
                 potentialFollowersJpaRepository.
                         getAllForRemoval(), () -> isNumberOfRemovalsPerDayReached()
@@ -94,6 +89,8 @@ public class PotentialFollowersService {
      * It will just follow.
      */
     public void step4Follow() {
+        System.out.println("-------------------------FOLLOW PROCESS------------------------");
+
         List<PotentialFollower> allForFollowing = potentialFollowersJpaRepository.
                 getAllForFollowing();
 
@@ -114,11 +111,14 @@ public class PotentialFollowersService {
     private void processPotentialFollowers(List<PotentialFollower> potentialFollowersToIterate,
                                            Supplier<Boolean> isNumberPerDayReached, Process processType) {
 
-        ProcessResult processResult = new ProcessResult(new AtomicInteger(potentialFollowersToIterate.size()));
+
+        Result processResult = new Result();
         System.out.println("About to open pages and process them: " + potentialFollowersToIterate.size());
 
+        int remaining = potentialFollowersToIterate.size();
+
         for (PotentialFollower pF : potentialFollowersToIterate) {
-            System.out.println("Pages left to iterate ..." + processResult.getLeftToIterate().getAndIncrement());
+            System.out.println("Pages left to iterate ..." + remaining--);
             if (isNumberPerDayReached.get()) break;
             if (!pageService.goToPotentialFollowerPage(pF)) continue;
 
@@ -132,13 +132,14 @@ public class PotentialFollowersService {
             }
             saveOne(pF);
         }
-        processResult.printResultAndConfirmProcessType(processType);
+
+        resultService.printResultAndConfirmProcessType(processType, processResult);
     }
 
-    private void followButtonLogic(PotentialFollower pF, ProcessResult processResult) {
+    private void followButtonLogic(PotentialFollower pF, Result processResult) {
         if (pF.getRemovedFromFollowersAtDate() == null) {
 
-            if (WaitDriver.waitAndGetElement(true, WebDriverUtil.PRIVATE_ACCOUNT_TEXT) == null) {
+            if (WaitDriver.waitAndGetElement(true, WebDriverUtil.THIS_ACCOUNT_IS_PRIVATE) == null) {
                 //click on first picture and like it
                 List<WebElement> pagePictures = WaitDriver.waitAndGetElements(false, WebDriverUtil.PAGE_PICTURES);
                 pageService.clickByMovingOnElement(pagePictures.get(0));
@@ -159,7 +160,7 @@ public class PotentialFollowersService {
         }
     }
 
-    private void removeOrConfirm(PotentialFollower potentialFollower, ProcessResult processResult, By locator, String message) {
+    private void removeOrConfirm(PotentialFollower potentialFollower, Result processResult, By locator, String message) {
 
         if (followRequestSentLessThan2DaysAgo(potentialFollower.getFollowRequestSentAtDate())) {
             potentialFollower.setFollowRequestSentConfirmed(true);

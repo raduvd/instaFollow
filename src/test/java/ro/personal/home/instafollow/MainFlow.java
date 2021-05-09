@@ -33,37 +33,10 @@ public class MainFlow {
     @Test
     public void wholeFlow() {
         pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-
-        //Process followers list before adding new accounts, because it is more error free
         processListService.refreshFollowers();
-
-        //MANDATORY RUN REFRESH FOLLOWERS BEFORE REMOVING
-        processListService.processFollowingListAndRemoveAccountsThatDoNotFollowBack();
-
-        //Best to be rolled after refreshingFollowers and removing followers!!!
-        potentialFollowersService.analiseFollowRequestResults();
-
-        //processListService.savePotentialFollowersFrom(PageAddress.PE_PLAIURI_ROMANESTI, 3);
-
-        //potentialFollowersService.followPotentialFollowers(Integer.MAX_VALUE);
-    }
-
-    @Test
-    public void step1RefreshFollowers() {
-
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
-        processListService.refreshFollowers();
-    }
-
-    @Test
-    public void processPotentialFollowers() {
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, RADU_VD_USERNAME, true);
+        potentialFollowersService.step2ConfirmRemovals();
         potentialFollowersService.step3RemoveOrFollow();
-    }
-
-    @Test
-    public void step3AnaliseFollowRequestResults() {
-        //Best to be rolled after refreshingFollowers and removing followers!!!
+        potentialFollowersService.step4Follow();
         potentialFollowersService.analiseFollowRequestResults();
     }
 

@@ -87,6 +87,7 @@ public class ProcessListService {
      */
     public void savePotentialFollowersFrom(PageAddress pageAddress, Integer targetNumberOfFollowers) {
 
+        System.out.println("-------------------------GET NEW POTENTIAL FOLLOWERS------------------------");
 
         for (Integer picIndex : pictureIndexesToProcess) {
 
@@ -143,6 +144,7 @@ public class ProcessListService {
      * The old followers that are not found here are set to isNoMore = true, if process is without error.
      */
     public void refreshFollowers() {
+        System.out.println("-------------------------REFRESHING FOLLOWERS------------------------");
 
         pageService.goToPage(false, PageAddress.INSTAGRAM_MY_ACCOUNT.getLinkToPage());
 
@@ -158,8 +160,9 @@ public class ProcessListService {
         //TODO add the saving in db logic in the positive if
         //TODO add an extra check to really be sure that the follower number is correct
         if (myFollowersNumber - followersFoundInWebDriver.size() > 5) {
-            System.out.println("The followers Found In Web Driver(" + followersFoundInWebDriver.size() + ") are not equal with the followers number from my page("
-                    + myFollowersNumber + "). This means that the logic is wrong.");
+            throw new RuntimeException("The followers Found In Web Driver(" + followersFoundInWebDriver.size() +
+                    ") are not equal with the followers number from my page(" + myFollowersNumber +
+                    "). The difference is bigger than 5 so something is really wrong.");
         } else {
             followingService.setIsNoMore();
             List<Followers> followers = followerService.createFollowers(new ArrayList<>(followersFoundInWebDriver));
@@ -176,7 +179,7 @@ public class ProcessListService {
         boolean isUserAPotentialFollower = potentialFollowersService.getOptionalById(potentialFollower.getId()).isPresent();
         if (isUserAFollower || isUserAPotentialFollower) return false;
 
-        boolean isAccountPrivate = null != WaitDriver.waitAndGetElement(true, WebDriverUtil.PRIVATE_ACCOUNT_TEXT);
+        boolean isAccountPrivate = null != WaitDriver.waitAndGetElement(true, WebDriverUtil.THE_ACCOUNT_IS_PRIVATE);
 
         Integer followers = (Integer) pageService.getValueFromElement(false, ElementValue.NUMBER_WITH_K_COMA_OR_POINT, FOLLOWERS_NUMBER, FOLLOWER_NUMBER);
         Integer following = (Integer) pageService.getValueFromElement(false, ElementValue.NUMBER_WITH_K_COMA_OR_POINT, FOLLOWING_NUMBER);
