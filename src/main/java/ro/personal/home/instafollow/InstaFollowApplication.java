@@ -6,17 +6,26 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /*
 THE APP SERVICES ARE WORKING JUST SOME DETAILS / tasks / improvements:
-//TODO update the result analisis logic to take only confirmed
-//TODO replace all prints with logs:
-    - use spring logging https://www.baeldung.com/spring-boot-logging
-    - Make 2 or 3 kinds of logs. only the most important should be put in console, the rest in a log file
+//TODO DO NOT WORK ON THIS ANY MORE, I HAVE SPENT A LOT!! MAXIMUM AN HOUR ONCE A WEEK + and small debug!!!
 //TODO ANALIZE PERIODICALLY
-   - check how many of the request are not being processed, this is shown in the logs and maybe wait more and see
-        if it improoves, or combine them, a follow then a removal and so on. Maybe at some point i can remove the confirmation
+   - check in DB how many removals are made in the REMOVE_NON_FOLLOWER process. If is zero or low, make the interval bigger, run more rarely
+   - check how many of the request (follow or/and remove) are not being processed, this is shown in the logs and
+        db and maybe wait more and see if it improoves, or combine them, a follow then a removal and so on.
+        Maybe at some point i can remove the confirmation
     - after a month or a week check in the DB- all should have confirmedRemoval = true and confirmedFoloowing = true,
         if not the logic is not good
     - after some time check what accounts did not followed back and adjust validation of follow request sending.
         THIS IS MANDATORY BECAUSE I HAVE some high values over there and they need to be tighte
+        there is a problem here because almost all users are invalid so I must add 100 each day,
+        I do not have enough valid users so maybe loosen up a
+        little bit and recheck the invalid users from db and additionally change the validatiopn logic
+//TODO the like list logic will run and run and run.
+   i really process hundreds of users per day, today i processed 600(hovered over 350) and got like 40 valid users
+   so rally need a limit of hovers per day in order not to be blocked0
+   i need to throw an error if it runs withouth iterating trough all the list simillary with the
+   also put a counter in the like list logic, like send how big is the list as a param in the likelistlogic and decrement or something
+//TODO am impresia ca daca dau follow la private account multe nu sunt procesate de instagram. dar cele non private requesturuile sunt trimise, check this
+//  aici ar trebui sa adug niste logica ca sa o salvez in db in processResult si apoi sa o verific periodic
 //TODO go trough all files and:
         - check for all todos
         - check logic, how can it be imrpoved:

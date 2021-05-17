@@ -1,6 +1,8 @@
 package ro.personal.home.instafollow.service;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,8 @@ import java.util.Base64;
 @RequiredArgsConstructor
 @Transactional
 public class AccountService {
+
+    Logger logger = LoggerFactory.getLogger(AccountService.class);
 
     @Autowired
     private AccountJpaRepository accountJpaRepository;
@@ -31,13 +35,13 @@ public class AccountService {
     }
 
     public String encode(String str) {
-        System.out.println("ENCODING STRING: " + str);
+        logger.debug("ENCODING STRING: {}", str);
         byte[] bytesEncoded = Base64.getEncoder().encode(str.getBytes());
         return new String(bytesEncoded);
     }
 
     public String decode(String str) {
-        System.out.println("DECODING STRING: " + str);
+        logger.debug("DECODING STRING: {}",str);
         byte[] valueDecoded = Base64.getDecoder().decode(str);
         return new String(valueDecoded);
     }

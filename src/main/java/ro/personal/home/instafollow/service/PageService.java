@@ -7,6 +7,8 @@ import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.util.Pair;
@@ -18,10 +20,15 @@ import ro.personal.home.instafollow.persistance.repository.PotentialFollowersJpa
 import ro.personal.home.instafollow.webDriver.webDriver.AppWebDriver;
 import ro.personal.home.instafollow.webDriver.webDriver.WaitDriver;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 @Data
 @Component
 @Scope("singleton")
 public class PageService {
+
+    Logger logger = LoggerFactory.getLogger(PageService.class);
 
     public static final By ACCEPT_ALL_COOKIES_BUTTON = By.xpath("//button[text()='Accept All']");
     public static final By LOGIN_BUTTON = By.xpath("//a[text()='Log In']");
@@ -61,14 +68,53 @@ public class PageService {
         cookieService.loadCookies(userName);
         goToPage(false, pageAddress.getLinkToPage());
 
-        if (!useCookiesToLogin) {
-            //Go to main login page
-            goToPage(false, PageAddress.INSTAGRAM_RAW.getLinkToPage());
-            loginAndHandlePopUps(account);
-            cookieService.saveCookies(userName);
-            //Go to initial page
-            goToPage(false, pageAddress.getLinkToPage());
+        if (!useCookiesToLogin) manualLogin(pageAddress, userName);
+    }
+
+    /**
+     * Basically loads the login cookies from another user.
+     * Mandatory used after the initialize method.
+     * Method is designed to change the user of an already initialized webdriver.
+     */
+    public void changeUser(PageAddress pageAddress, String userName, Boolean useCookiesToLogin) {
+
+        logger.info("SWITCHING USER TO: " + userName);
+        cookieService.loadCookies(userName);
+        goToPage(false, pageAddress.getLinkToPage());
+
+        if (!useCookiesToLogin) manualLogin(pageAddress, userName);
+    }
+
+    public WebElement findSubElementBy(Boolean continueOnError, WebElement parentElement, By... locators) {
+
+        int locatorsSize = locators.length;
+
+        for (int i = 0; i < locatorsSize; i++) {
+            try {
+                logger.debug("Trying to find element by {}" , locators[i].toString());
+                WebElement element = parentElement.findElement(locators[i]);
+                logger.debug("Returning element found by: {}", locators[i].toString());
+                return element;
+
+            } catch (Exception e) {
+                logger.debug("Element was not found BY: {}", locators[i].toString());
+                if (i + 1 >= locatorsSize && !continueOnError)
+                    throw new RuntimeException("The element was not found using the following locatos: " +
+                            Arrays.stream(locators).map(by -> by.toString()).collect(Collectors.toList()));
+            }
         }
+        return null;
+    }
+
+    private void manualLogin(PageAddress pageAddress, String userName) {
+
+        Pair<String, String> account = accountService.getAccount(userName);
+        //Go to main login page
+        goToPage(false, PageAddress.INSTAGRAM_RAW.getLinkToPage());
+        loginAndHandlePopUps(account);
+        cookieService.saveCookies(userName);
+        //Go to initial page
+        goToPage(false, pageAddress.getLinkToPage());
     }
 
     private void loginAndHandlePopUps(Pair<String, String> account) {
@@ -110,13 +156,13 @@ public class PageService {
 
     public boolean goToPage(Boolean wait, String pageAddress) {
         int timeToWait = wait ? 25000 : 0;
-        System.out.println("------------------------------------ We will try to open the following link: " + pageAddress +
-                " after waiting milliseconds:" + timeToWait);
+        logger.debug("------------------------------------ We will try to open the following link: " + pageAddress +
+                " after waiting milliseconds: {}" ,timeToWait);
         WaitDriver.sleepForMiliseconds(timeToWait);
         webDriver.get(pageAddress);
 
         if (wait && !isPageAvailable()) {
-            System.out.println("The page (" + pageAddress + ") was unavailable.");
+            logger.debug("The page ({}) was unavailable.",  pageAddress);
             return false;
         }
         return true;

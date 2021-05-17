@@ -20,6 +20,7 @@ public class PotentialFollower implements Serializable {
 
     private Boolean isFollowRequested;
     private LocalDate followRequestSentAtDate;
+    private LocalDate addedAt;
     private Boolean followBackRefused;
     private Boolean isRejectedDueToValidation;
     private Integer posts;

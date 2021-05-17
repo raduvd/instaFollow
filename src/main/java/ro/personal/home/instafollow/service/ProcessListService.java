@@ -3,22 +3,26 @@ package ro.personal.home.instafollow.service;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebElement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import ro.personal.home.instafollow.enums.ElementValue;
-import ro.personal.home.instafollow.enums.ListType;
 import ro.personal.home.instafollow.enums.PageAddress;
+import ro.personal.home.instafollow.enums.Process;
 import ro.personal.home.instafollow.persistance.model.Followers;
 import ro.personal.home.instafollow.persistance.model.PotentialFollower;
+import ro.personal.home.instafollow.persistance.model.ProcessResult;
 import ro.personal.home.instafollow.persistance.model.ProcessedPicture;
 import ro.personal.home.instafollow.persistance.repository.ProcessedPictureJpaRepository;
 import ro.personal.home.instafollow.webDriver.webDriver.AppWebDriver;
 import ro.personal.home.instafollow.webDriver.webDriver.WaitDriver;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -26,6 +30,8 @@ import java.util.*;
 @AllArgsConstructor
 @Data
 public class ProcessListService {
+
+    Logger logger = LoggerFactory.getLogger(ProcessListService.class);
 
     @Autowired
     private PageService pageService;
@@ -42,15 +48,13 @@ public class ProcessListService {
     @Autowired
     private FollowingService followingService;
 
+    @Autowired
+    private ProcessResultService processResultService;
+
     /**
      * Ex: If more that 2 days pass and the user does not follow back, we remove him.
      */
-    public static Integer NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER = 2;
-    /**
-     * A profile has a multitude of picture, this index will indicate which one of these pictures are being processed.
-     * Zero represent the latest photo.
-     */
-    private static Integer[] pictureIndexesToProcess = {0, 1, 2, 3, 4, 5};
+    public static Integer NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER = 3;
 
     private static final By FOLLOWING_NUMBER = By.xpath("//div/span[text()=' following']/span");
     private static final By FOLLOWERS_NUMBER = By.xpath("//div/span[text()=' followers']/span");
@@ -60,9 +64,16 @@ public class ProcessListService {
 
 
     private static final By OTHERS_LIST = By.xpath("//a[text()=' others']");
+    private static final By LIKE_LIST = By.xpath("//a[text()=' likes']");
     private static final By OTHERS_LIST_SIZE = By.xpath("//a[text()=' others']/span");
-    private static final By LIKES_LIST_USERNAMES = By.xpath("//button[text()='Follow']/../../div[2]/div/div/span/a");
+    private static final By LIKE_LIST_SIZE = By.xpath("//a[text()=' likes']/span");
+
+    private static final By LIKES_LIST_USERNAMES = By.xpath("//button/../../div[2]/div/div/span/a");
+    /**
+     * When we hover over this one, extra info is loaded.
+     */
     private static final By LIST_USERNAME_LINKS = By.xpath("//a[@title and @href and @tabindex]");
+
     private static final By MY_FOLLOWERS_MAIN_BUTTON = By.xpath("//a[@href='/raduvd/followers/']");
     private static final By MY_FOLLOWERS_NUMBER = By.xpath("//a[@href='/raduvd/followers/']/span");
     private static final By MY_FOLLOWING_MAIN_BUTTON = By.xpath("//a[@href='/raduvd/following/']");
@@ -71,12 +82,15 @@ public class ProcessListService {
     private static final By LIST_ELEMENT_BUTTON = By.xpath("../../../../../div[2]/button");
     private static final By LIST_ELEMENT_BUTTON_2 = By.xpath("../../../../../..//div[3]/button");
 
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MAXIMUM_FOLLOWERS = 2500;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MAXIMUM_FOLLOWINGS = 2500;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_FOLLOWINGS = 500;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_FOLLOWERS = 100;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_POSTS = 10;
-    private static final Integer FOLLOW_ACCOUNTS_WITH_MAXIMUM_DIFERENCE_BETWEEN_FOLLOWERS_MINUS_FOLLOWING = 200;
+    private static final Integer FOLLOW_ACCOUNTS_WITH_MAXIMUM_FOLLOWERS = Integer.MAX_VALUE;
+    private static final Integer FOLLOW_ACCOUNTS_WITH_MAXIMUM_FOLLOWINGS = Integer.MAX_VALUE;
+    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_FOLLOWINGS = 100;
+    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_FOLLOWERS = 10;
+    private static final Integer FOLLOW_ACCOUNTS_WITH_MINIMUM_POSTS = 2;
+    private static final Integer MAX_DIF_BETWEEN_FOLLOWERS_MINUS_FOLLOWING_ACCOUNTS_WITH_BELOW_500_FOLLOWERS = 0;
+    private static final Integer MAX_DIF_BETWEEN_FOLLOWERS_MINUS_FOLLOWING_ACCOUNTS_WITH_BETWEEN_500_1000_FOLLOWERS = 65;
+    private static final Integer MAX_DIF_BETWEEN_FOLLOWERS_MINUS_FOLLOWING_ACCOUNTS_WITH_BETWEEN_1000_1500_FOLLOWERS = 130;
+    private static final Integer MAX_DIF_BETWEEN_FOLLOWERS_MINUS_FOLLOWING_ACCOUNTS_WITH_ABOVE_1500_FOLLOWERS = 200;
 
     public void tempCheckIsAccountPrivate() {
     }
@@ -87,46 +101,79 @@ public class ProcessListService {
      */
     public void savePotentialFollowersFrom(PageAddress pageAddress, Integer targetNumberOfFollowers) {
 
-        System.out.println("-------------------------GET NEW POTENTIAL FOLLOWERS------------------------");
+        logger.info("-------------------------GET NEW POTENTIAL FOLLOWERS PROCESS------------------------");
 
-        for (Integer picIndex : pictureIndexesToProcess) {
+        pageService.changeUser(pageAddress, WebDriverUtil.RADU_VD_1_USERNAME, true);
 
-            //If I have the targetNumberOfFollowers, do not continue with the next pictures
-            if (potentialFollowersService.getPotentialFollowersJpaRepository().getAllForFollowing().size()
-                    >= targetNumberOfFollowers)
+        //Get the profile pictures
+        List<WebElement> pagePictures = WaitDriver.waitAndGetElements(false, WebDriverUtil.PAGE_PICTURES);
+
+        Integer previousListSize = Integer.valueOf(0);
+        for (WebElement picture : pagePictures) {
+
+            int allUsersFromDBToFollow = potentialFollowersService.
+                    getPotentialFollowersJpaRepository().getAllForFollowing().size();
+            logger.info("allUsersFromDBToFollow: {}", allUsersFromDBToFollow);
+            logger.info("How many users I need (targetNumberOfFollowers): {}", targetNumberOfFollowers);
+            if (allUsersFromDBToFollow >= targetNumberOfFollowers) {
+                logger.info("The target is reached so we will not continue to" +
+                        " process/save more potential followers.");
                 break;
+            }
 
-            //Go to page/profile
-            pageService.goToPage(false, pageAddress.getLinkToPage());
-
-            //Get the profile pictures
-            List<WebElement> pagePictures = WaitDriver.waitAndGetElements(false, WebDriverUtil.PAGE_PICTURES);
-
-            //Get the picture according to pictureIndexFromProfile
-            validatePictureIndex(pagePictures, picIndex);
-            WebElement pictureFromProfile = pagePictures.get(picIndex);
-            ProcessedPicture processedPicture = getOrSavePictureEntity(pictureFromProfile, pageAddress);
+            ProcessedPicture processedPicture = getOrSavePictureEntity(picture, pageAddress);
             if (isPictureInvalid(processedPicture)) {
-                System.out.println("Picture index " + picIndex + " from profile " + pageAddress + "was not processed because it is already processed");
+                logger.info("The Picture was not processed because it was already processed.");
                 continue;
             }
-            pageService.clickByMovingOnElement(pictureFromProfile);
+            pageService.clickByMovingOnElement(picture);
 
             //OPEN LIST OF profiles that have LIKEd the picture
-            pageService.waitForButtonAndClickIt(false, OTHERS_LIST);
+            pageService.waitForButtonAndClickIt(false, OTHERS_LIST, LIKE_LIST);
             //process the list and save in DB the usernames
-            Integer listSize = (Integer) pageService.getValueFromElement(false, ElementValue.NUMBER_WITH_K_COMA_OR_POINT, OTHERS_LIST_SIZE);
-            Set<String> potentialFollowersAddedInDb = processIgList(LIKES_LIST_USERNAMES, ListType.LIKE_LIST, listSize);
+            Integer listSize = (Integer) pageService.getValueFromElement(false, ElementValue.NUMBER_WITH_K_COMA_OR_POINT, OTHERS_LIST_SIZE, LIKE_LIST_SIZE);
 
-            System.out.println("From this picture (" + processedPicture.getIdPicName() +
-                    ") we added potentialFollowers in DB: " + potentialFollowersAddedInDb.size());
+            if (listSize.equals(previousListSize)) {
+                throw new RuntimeException("Two lists with the same size? Something is wrong!"
+                        + listSize + " : " + previousListSize);
+            }
+            previousListSize = listSize;
+            ProcessResult processResult = processIgList(LIKES_LIST_USERNAMES, Process.GET_NEW_POTENTIAL_FOLLOWERS, listSize);
+
+            logger.info("WE JUST HOVERED OVER {} USERS (we also saved them in DB). From picture {}",
+                    processResult.getFromTotalWeAppliedLogicOn(),
+                    processedPicture.getIdPicName());
+
             processedPicture.setIsProcessed(true);
             processedPictureJpaRepository.saveAndFlush(processedPicture);
+            pageService.waitForButtonAndClickIt(false, WebDriverUtil.CLOSE);
         }
+        logger.info("I have in DB potential followers valid for following: {}", potentialFollowersService.
+                getPotentialFollowersJpaRepository().getAllForFollowing().size());
+        pageService.changeUser(pageAddress, WebDriverUtil.RADU_VD_USERNAME, true);
     }
 
-    //DO not remove yet, even if it is not used, because the logic of processing followings may be needed.
-    public void processFollowingListAndRemoveAccountsThatDoNotFollowBack() {
+    /**
+     * Process the following list and removes users that are not followers.
+     * This process should run after refreshFollowers and after removeOrFollow process,
+     * because the latter is best way to remove users. This is just as backup. Or run individually.
+     *
+     * @param numberOfDaysInterval - this is zero indexed!!
+     *                             - this process runs once in the number of days indicated by this parameter.
+     *                             E.g: If numberOfDaysInterval is 0, the process will run only once that day until midnight.
+     *                             If is 7, the process will run once a week.
+     */
+    public void removeNonFollowers(Integer numberOfDaysInterval) {
+        logger.info("-------------------------REMOVE NON FOLLOWERS PROCESS------------------------");
+
+        Process processType = Process.REMOVE_NON_FOLLOWERS;
+        List<ProcessResult> processesInNumberOfDaysInterval =
+                processResultService.getAllInIntervalOfDays(numberOfDaysInterval, processType);
+
+        if (!processesInNumberOfDaysInterval.isEmpty()) {
+            logger.info("THE PROCESS HAS ALREADY RUN IN THE DAYS INTERVAL: " + numberOfDaysInterval);
+            return;
+        }
 
         pageService.goToPage(false, PageAddress.INSTAGRAM_MY_ACCOUNT.getLinkToPage());
         pageService.waitForButtonAndClickIt(false, MY_FOLLOWING_MAIN_BUTTON);
@@ -134,17 +181,27 @@ public class ProcessListService {
         Integer myFollowingNumber = (Integer) pageService.
                 getValueFromElement(false, ElementValue.NUMBER_WITH_K_COMA_OR_POINT, MY_FOLLOWING_NUMBER);
 
-        Set<String> removedUsers = processIgList(LIST_USERNAME_LINKS, ListType.FOLLOWING_LIST, myFollowingNumber);
-
-        System.out.println("REMOVED " + removedUsers.size() + " USERS. I SHOULD HAVE NOW: " + (myFollowingNumber - removedUsers.size()));
+        ProcessResult processResult = processIgList(LIST_USERNAME_LINKS, processType, myFollowingNumber);
+        processResult.setConfirmedFollowing(myFollowingNumber);
+        processResultService.printResultAndValidate(processType, processResult);
+        processResultService.getProcessResultJpaRepository().saveAndFlush(processResult);
     }
 
     /**
      * Gets all followers from list and saves them in DB (isNoMore=false).
      * The old followers that are not found here are set to isNoMore = true, if process is without error.
      */
-    public void refreshFollowers() {
-        System.out.println("-------------------------REFRESHING FOLLOWERS------------------------");
+    public void refreshFollowers(Boolean onlyOnceADay) {
+        Process processType = Process.REFRESH_FOLLOWERS;
+        List<ProcessResult> refreshFollowersProcessesToday =
+                processResultService.getAllInIntervalOfDays(0, processType);
+
+        if (!refreshFollowersProcessesToday.isEmpty() && onlyOnceADay) {
+            logger.info("THE REFRESH FOLLOWING PROCESS WAS ALREADY DONE TODAY");
+            return;
+        }
+
+        logger.info("-------------------------REFRESHING FOLLOWERS------------------------");
 
         pageService.goToPage(false, PageAddress.INSTAGRAM_MY_ACCOUNT.getLinkToPage());
 
@@ -153,8 +210,8 @@ public class ProcessListService {
 
         pageService.waitForButtonAndClickIt(false, MY_FOLLOWERS_MAIN_BUTTON);
 
-        Set<String> followersFoundInWebDriver = processIgList(LIST_USERNAME_LINKS, ListType.FOLLOWER_LIST, myFollowersNumber);
-
+        ProcessResult processResult = processIgList(LIST_USERNAME_LINKS, Process.REFRESH_FOLLOWERS, myFollowersNumber);
+        Set<String> followersFoundInWebDriver = processResult.getProcessedUserList();
         //TODO this logic will cause the follower table not to be consistent
         //TODO debug why sometimes the list is not process corectlu- i have noticed that it failed wehn 160 list size, and was ok at 166
         //TODO add the saving in db logic in the positive if
@@ -166,10 +223,14 @@ public class ProcessListService {
         } else {
             followingService.setIsNoMore();
             List<Followers> followers = followerService.createFollowers(new ArrayList<>(followersFoundInWebDriver));
-            System.out.println("--------------------------WE ADDED IN DB FOLLOWERS: " + followers.size());
-            System.out.println("My Followers: " + followers);
-            System.out.println("The followers Found In Web Driver(" + followersFoundInWebDriver.size() + ") and followers number from my page("
+            processResultService.getProcessResultJpaRepository().saveAndFlush(processResult);
+            logger.info("--------------------------WE ADDED IN DB FOLLOWERS: " + followers.size());
+            logger.info("My Followers: " + followers);
+            logger.info("The followers Found In Web Driver(" + followersFoundInWebDriver.size() + ") and followers number from my page("
                     + myFollowersNumber + ").");
+
+            potentialFollowersService.updateFollowRequestSentConfirmed(followersFoundInWebDriver);
+
         }
     }
 
@@ -190,14 +251,37 @@ public class ProcessListService {
         potentialFollower.setFollowing(following);
         potentialFollower.setPosts(posts);
 
-        System.out.println("PROFILE -" + potentialFollower.getId() + "- WITH FOLLOWERS (" + followers + "), FOLLOWING (" +
-                following + "), POSTS (" + posts + "), " + "PRIVATE ACCOUNT (" + isAccountPrivate + ").");
+        logger.debug("PROFILE - {} - WITH FOLLOWERS ({}), FOLLOWING ({}), POSTS ({}), PRIVATE ACCOUNT ({}).",
+                potentialFollower.getId(),
+                followers,
+                following,
+                posts,
+                isAccountPrivate);
+
+        return validateUserInfo(followers, following, posts);
+    }
+
+    public boolean validateUserInfo(Integer followers, Integer following, Integer posts) {
+
+        if (followers < 500 && followers - following > MAX_DIF_BETWEEN_FOLLOWERS_MINUS_FOLLOWING_ACCOUNTS_WITH_BELOW_500_FOLLOWERS) {
+            return false;
+        }
+
+        if (followers > 500 && followers < 1000 && followers - following > MAX_DIF_BETWEEN_FOLLOWERS_MINUS_FOLLOWING_ACCOUNTS_WITH_BETWEEN_500_1000_FOLLOWERS) {
+            return false;
+        }
+
+        if (followers > 1000 && followers < 1500 && followers - following > MAX_DIF_BETWEEN_FOLLOWERS_MINUS_FOLLOWING_ACCOUNTS_WITH_BETWEEN_1000_1500_FOLLOWERS) {
+            return false;
+        }
+
+        if (followers > 1500 && followers - following > MAX_DIF_BETWEEN_FOLLOWERS_MINUS_FOLLOWING_ACCOUNTS_WITH_ABOVE_1500_FOLLOWERS)
+            return false;
 
         return followers <= FOLLOW_ACCOUNTS_WITH_MAXIMUM_FOLLOWERS &&
                 followers >= FOLLOW_ACCOUNTS_WITH_MINIMUM_FOLLOWERS &&
                 following <= FOLLOW_ACCOUNTS_WITH_MAXIMUM_FOLLOWINGS &&
                 following >= FOLLOW_ACCOUNTS_WITH_MINIMUM_FOLLOWINGS &&
-                followers - following <= FOLLOW_ACCOUNTS_WITH_MAXIMUM_DIFERENCE_BETWEEN_FOLLOWERS_MINUS_FOLLOWING &&
                 posts >= FOLLOW_ACCOUNTS_WITH_MINIMUM_POSTS;
     }
 
@@ -205,11 +289,12 @@ public class ProcessListService {
         return userName != null && userName.length() <= 30;
     }
 
-    private Set<String> processIgList(By locator, ListType listType, Integer listSize) {
+    private ProcessResult processIgList(By locator, Process process, Integer listSize) {
+        ProcessResult processResult = new ProcessResult(process);
 
         Set<String> resultFromListProcess = new TreeSet<>();
 
-        System.out.println("WE WILL GO TROUGHT LIST ELEMENTS: " + listSize);
+        logger.info("WE WILL GO TROUGHT LIST ELEMENTS: " + listSize);
         Set<String> alreadyIteratedElements = new TreeSet<>();
         boolean elementsWereProcessedLastLoop = true;
 
@@ -218,20 +303,21 @@ public class ProcessListService {
             List<WebElement> currentList = WaitDriver.waitAndGetElements(false, locator);
 
             int sizeBeforeIteration = alreadyIteratedElements.size();
-            resultFromListProcess.addAll(iterateListElements(currentList, alreadyIteratedElements, listType, listSize));
+            resultFromListProcess.addAll(iterateListElements(currentList, alreadyIteratedElements, process, listSize));
             int sizeAfterIteration = alreadyIteratedElements.size();
 
             elementsWereProcessedLastLoop = sizeAfterIteration > sizeBeforeIteration;
         }
-        if (listType == ListType.FOLLOWING_LIST) {
-            return resultFromListProcess;
-        } else {
-            return new TreeSet<>(alreadyIteratedElements);
-        }
+
+        processResult.setTotalProcessedUsers(alreadyIteratedElements.size());
+        processResult.setFromTotalWeAppliedLogicOn(resultFromListProcess.size());
+        processResult.setProcessedUserList(alreadyIteratedElements);
+
+        return processResult;
     }
 
     private Set<String> iterateListElements
-            (List<WebElement> currentList, Set<String> alreadyIteratedElements, ListType listType, Integer listSize) {
+            (List<WebElement> currentList, Set<String> alreadyIteratedElements, Process process, Integer listSize) {
 
         Set<String> returnedFromList = new TreeSet<>();
         for (WebElement listElement : currentList) {
@@ -245,77 +331,142 @@ public class ProcessListService {
             pageService.moveToElement(WaitDriver.waitAndGetElement(false, WebDriverUtil.CLOSE));
             WaitDriver.sleepForMiliseconds(2000);
 
-            if (alreadyIteratedElements.size() != listSize - 1 && currentList.get(currentList.size() - 1) == listElement) {
-                System.out.println("----SCROLLING TO " + elementId + " AND NOT PERFORMING ANY LOGIC");
+            if (alreadyIteratedElements.size() != listSize - 1 &&
+                    currentList.get(currentList.size() - 1) == listElement) {
+                logger.debug("----SCROLLING TO {} AND NOT PERFORMING ANY LOGIC", elementId);
                 ((JavascriptExecutor) AppWebDriver.getWebDriver()).executeScript("arguments[0].scrollIntoView(true);", listElement);
                 WaitDriver.sleepForMiliseconds(2000);
             } else {
-                System.out.println("----MOVING and PERFORMING LOGIC FOR " + elementId);
-                pageService.moveToElement(listElement);
-                returnedFromList.addAll(performListLogic(elementId, listType, listElement));
+                logger.debug("----MOVING and PERFORMING LOGIC FOR " + elementId);
+                returnedFromList.add(performListLogic(elementId, process, listElement));
                 alreadyIteratedElements.add(elementId);
             }
         }
         return returnedFromList;
     }
 
-    private Set<String> performListLogic(String userName, ListType listType, WebElement webElement) {
-        switch (listType) {
-            case LIKE_LIST -> {
-                return likeListLogic(userName);
+    private String performListLogic(String userName, Process process, WebElement webElement) {
+        switch (process) {
+            case GET_NEW_POTENTIAL_FOLLOWERS -> {
+                return likeListLogic(webElement, userName);
             }
-            case FOLLOWER_LIST -> {
-                return followerListLogic(userName);
+            case REFRESH_FOLLOWERS -> {
+                return followerListLogic(webElement, userName);
             }
-            case FOLLOWING_LIST -> {
+            case REMOVE_NON_FOLLOWERS -> {
                 return followingListLogic(webElement, userName);
             }
-            default -> throw new RuntimeException("Wrong list type");
+            default -> throw new RuntimeException("Wrong process type for this logic.");
         }
     }
 
-    private Set<String> likeListLogic(String userName) {
-        Set<String> addedInDb = new HashSet<>();
+    private String likeListLogic(WebElement listElement, String userName) {
 
-        PotentialFollower potentialFollower = new PotentialFollower();
-        potentialFollower.setId(userName);
+        if (potentialFollowersService.getOptionalById(userName).isPresent()) {
+            logger.debug("User is already in the DB we will not hover.");
+        } else {
+            logger.info("Hovering...");
+            pageService.moveToElement(listElement);
 
-        if (isFollowerValid(potentialFollower)) {
-            potentialFollower.setIsFollowRequested(false);
-            potentialFollower.setFollowBackRefused(false);
-            potentialFollower.setIsRejectedDueToValidation(false);
+            PotentialFollower potentialFollower = new PotentialFollower();
+            potentialFollower.setId(userName);
+
+            if (isFollowerValid(potentialFollower)) {
+                potentialFollower.setIsRejectedDueToValidation(false);
+                logger.debug("USER IS VALID. WILL SAVE IN DB: " + potentialFollower.toString());
+            } else {
+                potentialFollower.setIsRejectedDueToValidation(true);
+                logger.debug("USER IS NOT VALID. BUT STILL SAVING IN DB; " + potentialFollower.toString());
+            }
+
             potentialFollower.setPageCanBeOpened(true);
-
             potentialFollower.setRemovalConfirmed(false);
             potentialFollower.setFollowRequestSentConfirmed(false);
-
+            potentialFollower.setIsFollowRequested(false);
+            potentialFollower.setFollowBackRefused(false);
+            potentialFollower.setAddedAt(LocalDate.now());
             potentialFollowersService.saveOne(potentialFollower);
-            System.out.println("USER IS VALID. SAVING IN DB: " + potentialFollower.toString());
-            addedInDb.add(potentialFollower.getId());
-        } else {
-            System.out.println("USER IS NOT VALID. NOT SAVING IN DB.");
         }
-        return addedInDb;
+        return userName;
     }
 
-    private Set<String> followerListLogic(String userName) {
-        System.out.println("Processing user: " + userName);
-        return Collections.emptySet();
+    private String followerListLogic(WebElement listElement, String userName) {
+        logger.debug("Processing user: " + userName);
+        return StringUtils.EMPTY;
     }
 
-    private Set<String> followingListLogic(WebElement listElement, String userName) {
-        System.out.println("Do Nothing - To be implemented");
-        return Collections.emptySet();
+    private String followingListLogic(WebElement listElement, String userName) {
+
+        if (removeUserQuestionMark(userName)) {
+
+            WebElement button = pageService.findSubElementBy(false, listElement, LIST_ELEMENT_BUTTON, LIST_ELEMENT_BUTTON_2);
+            button.click();
+            pageService.waitForButtonAndClickIt(true, WebDriverUtil.UNFOLLOW_CONFIRMATION);
+
+            PotentialFollower potentialFollower = potentialFollowersService.getOptionalById(userName).get();
+            potentialFollower.setFollowBackRefused(true);
+            potentialFollower.setRemovedFromFollowersAtDate(LocalDate.now());
+            potentialFollower.setRemovalConfirmed(false);
+            potentialFollower.setFollowRequestSentConfirmed(true);
+            potentialFollowersService.saveOne(potentialFollower);
+            WaitDriver.sleepForMiliseconds(30000);
+            return userName;
+        }
+        return StringUtils.EMPTY;
     }
 
-    private void validatePictureIndex(List<WebElement> pagePictures, Integer pictureIndexFromProfile) {
-        if (pagePictures.size() < pictureIndexFromProfile)
-            throw new IndexOutOfBoundsException("The profile page does not have that many photos, " + pictureIndexFromProfile + ".");
+    public boolean removeUserQuestionMark(String userId) {
+
+        if (potentialFollowersService.isNumberOfRemovalsPerDayReached()) {
+            logger.debug("USER {} WAS *NOT* REMOVED BECAUSE THE NUMBER PER DAY REMOVALS *WAS* REACHED.", userId);
+            return false;
+        }
+
+        Optional<PotentialFollower> potentialFollowerOptional = potentialFollowersService.getOptionalById(userId);
+
+        //We remove only users from potentialFollowers, not user added by me manually. So if this is empathy we do not remove.
+        boolean isUserAPotentialFollower = potentialFollowerOptional.isPresent();
+        if (!isUserAPotentialFollower) {
+            logger.debug("USER {} WAS *NOT* REMOVED BECAUSE HE IS *NOT* A POTENTIAL FOLLOWER (WAS ADDED MANUALLY BY ME).", userId);
+            return false;
+        }
+
+        boolean wasFollowRequestSent = potentialFollowerOptional.get().getFollowRequestSentAtDate() != null;
+
+        if (!wasFollowRequestSent) {
+            logger.debug("USER {} WAS *NOT* REMOVED BECAUSE THE THE FOLLOW REQUEST WAS NOT SENT", userId);
+            return false;
+        }
+
+        LocalDate followRequestSentAtDate = potentialFollowerOptional.get().getFollowRequestSentAtDate();
+        LocalDate currentTimeMinusXDays = LocalDate.now().minusDays(NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER);
+        boolean followRequestSentLessThan2DaysAgo = followRequestSentAtDate.isAfter(currentTimeMinusXDays);
+        if (followRequestSentLessThan2DaysAgo) {
+            logger.debug("USER {} WAS *NOT* REMOVED BECAUSE THE REQUEST IS RECENT," +
+                    " WE HAVE TO WAIT MORE BEFORE REMOVING. REQUEST DATE: {}", userId, followRequestSentAtDate);
+            return false;
+        }
+
+        if (followerService.isUserInMyFollowerList(userId)) {
+            logger.debug("USER {} WAS NOT REMOVED BECAUSE HE IS IN MY FOLLOWERS LIST.", userId);
+            return false;
+        }
+        //If we reach here it means that the user is:
+        //1. A potential follower and we can remove him. If he was not a potential follower we couldn't remove him.
+        //2. Has a request sent more than 2 days ago.
+        //3. We have more to go until 50 REMOVALS today, and we can go on.
+        //4. The user is not in my followers list (does not follow back). So we can safely delete him.
+        //5. The user has a Follow request sent (this is obvious if I process the following list, but non the less this is checked too).
+        logger.debug("********************************WE CAN SAFELY DELETE THIS USER: " + userId);
+        return true;
     }
 
     private ProcessedPicture getOrSavePictureEntity(WebElement pictureFromProfile, PageAddress pageAddress) {
 
         String pictureId = pictureFromProfile.getAttribute("href");
+
+        logger.info("Processing... picture: " + pictureId);
+
         if (StringUtils.isEmpty(pictureId))
             throw new RuntimeException("The selected picture with index 'the index?' is null.");
 
