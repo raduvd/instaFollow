@@ -147,6 +147,7 @@ public class ProcessListService {
             processedPicture.setIsProcessed(true);
             processedPictureJpaRepository.saveAndFlush(processedPicture);
             pageService.waitForButtonAndClickIt(false, WebDriverUtil.CLOSE);
+            WaitDriver.sleepForMiliseconds(2000);
         }
         logger.info("I have in DB potential followers valid for following: {}", potentialFollowersService.
                 getPotentialFollowersJpaRepository().getAllForFollowing().size());
@@ -225,7 +226,7 @@ public class ProcessListService {
             List<Followers> followers = followerService.createFollowers(new ArrayList<>(followersFoundInWebDriver));
             processResultService.getProcessResultJpaRepository().saveAndFlush(processResult);
             logger.info("--------------------------WE ADDED IN DB FOLLOWERS: " + followers.size());
-            logger.info("My Followers: " + followers);
+            logger.debug("My Followers: " + followers);
             logger.info("The followers Found In Web Driver(" + followersFoundInWebDriver.size() + ") and followers number from my page("
                     + myFollowersNumber + ").");
 
@@ -294,11 +295,11 @@ public class ProcessListService {
 
         Set<String> resultFromListProcess = new TreeSet<>();
 
-        logger.info("WE WILL GO TROUGHT LIST ELEMENTS: " + listSize);
+        logger.info("WE WILL GO TROUGHT LIST ELEMENTS: {}...", listSize);
         Set<String> alreadyIteratedElements = new TreeSet<>();
         boolean elementsWereProcessedLastLoop = true;
 
-        while (elementsWereProcessedLastLoop) {
+        while (elementsWereProcessedLastLoop && !isLimitReached(process)) {
             //List is arranged exactly as DOM. NOTE that adding to SET will re-arrange in random order.
             List<WebElement> currentList = WaitDriver.waitAndGetElements(false, locator);
 
@@ -314,6 +315,16 @@ public class ProcessListService {
         processResult.setProcessedUserList(alreadyIteratedElements);
 
         return processResult;
+    }
+
+    private Boolean isLimitReached(Process process) {
+        switch (process) {
+            case REMOVE_NON_FOLLOWERS -> {
+                logger.info("PROCESS REMOVE_NON_FOLLOWERS WAS STOPED DUE TO THE FACT THAT THE NUMBER REMOVAL PER DAY IS REACHED.");
+                return potentialFollowersService.isNumberOfRemovalsPerDayReached();
+            }
+        }
+        return false;
     }
 
     private Set<String> iterateListElements
@@ -364,6 +375,7 @@ public class ProcessListService {
 
         if (potentialFollowersService.getOptionalById(userName).isPresent()) {
             logger.debug("User is already in the DB we will not hover.");
+            return StringUtils.EMPTY;
         } else {
             logger.info("Hovering...");
             pageService.moveToElement(listElement);
@@ -386,8 +398,8 @@ public class ProcessListService {
             potentialFollower.setFollowBackRefused(false);
             potentialFollower.setAddedAt(LocalDate.now());
             potentialFollowersService.saveOne(potentialFollower);
+            return userName;
         }
-        return userName;
     }
 
     private String followerListLogic(WebElement listElement, String userName) {

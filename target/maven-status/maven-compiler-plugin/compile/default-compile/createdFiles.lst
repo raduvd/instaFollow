@@ -3,7 +3,6 @@ ro\personal\home\instafollow\webDriver\webDriver\AppWebDriver.class
 ro\personal\home\instafollow\enums\PageAddress.class
 ro\personal\home\instafollow\webDriver\model\Errors.class
 ro\personal\home\instafollow\service\AccountService.class
-ro\personal\home\instafollow\enums\ListType.class
 ro\personal\home\instafollow\persistance\model\ProcessedPicture.class
 ro\personal\home\instafollow\persistance\model\ProcessedPicture$ProcessedPictureBuilder.class
 ro\personal\home\instafollow\persistance\model\Following$FollowingBuilder.class

@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.TreeSet;
 
 @Entity(name = "processResult")
-@ToString
 @Data
 @Builder
 @NoArgsConstructor
@@ -71,5 +70,24 @@ public class ProcessResult implements Serializable {
 
     public Integer decrementAndConfirmedFollowing() {
         return -confirmedFollowing;
+    }
+
+    @Override
+    public String toString() {
+        switch (this.processType) {
+            case "REFRESH_FOLLOWERS":
+                return "REFRESH_FOLLOWERS process has found followers --> " + this.totalProcessedUsers;
+            case "REMOVING_OR_FOLLOWING":
+                return "REMOVING_OR_FOLLOWING process has removed (" + this.removed +
+                        ") and followed (" + this.followed + ")";
+            case "FOLLOWING":
+                return "FOLLOWING process has followed (" + this.followed + ")";
+            case "REMOVE_NON_FOLLOWERS":
+                return "REMOVE_NON_FOLLOWERS process has removed (" + this.removed + ")";
+            case "GET_NEW_POTENTIAL_FOLLOWERS":
+                return "GET_NEW_POTENTIAL_FOLLOWERS process has hovered and added in DB for one pic (" + this.fromTotalWeAppliedLogicOn + ")";
+            default:
+                return "";
+        }
     }
 }

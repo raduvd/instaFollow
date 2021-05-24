@@ -31,8 +31,12 @@ import java.util.stream.Collectors;
 @Getter
 public class PotentialFollowersService {
 
+    private static StringBuilder RESULT;
+
     Logger logger = LoggerFactory.getLogger(PotentialFollowersService.class);
 
+    @Autowired
+    private MailService mailService;
     @Autowired
     private PageService pageService;
 
@@ -129,7 +133,7 @@ public class PotentialFollowersService {
         ProcessResult processResult = new ProcessResult();
         logger.info("About to open pages and process them: " + potentialFollowersToIterate.size());
 
-        int remaining = potentialFollowersToIterate.size();
+        int remaining = getRemaining(potentialFollowersToIterate.size(), processType);
 
         for (PotentialFollower pF : potentialFollowersToIterate) {
             logger.info("Pages left to iterate ..." + remaining--);
@@ -142,12 +146,26 @@ public class PotentialFollowersService {
                 case FOLLOWING -> removeOrConfirm(pF, processResult, FRIENDSHIP_DROPDOWN, "I still follow the user, and now I " +
                         "will remove it: " + pF.getId());
                 case FOLLOW -> followButtonLogic(pF, processResult);
-                case NONE -> throw new RuntimeException("No button was found on the page");
+                case NONE -> {
+                    //Aici pur si simplu ajungem foarte des din cauza ca nu se deschide pagina, din cauza la net
+                    // sau ceva eroare de la insta, dar a doua oara se deschide. asta cu continue e o solutie temporara
+                    logger.info("No button was found on the page of user '{}'(probably the page was not opened). We will try again next run.", pF.getId());
+                    continue;
+                }
             }
             saveOne(pF);
         }
 
         processResultService.printResultAndValidate(processType, processResult);
+    }
+
+    private Integer getRemaining(Integer totalListSize, Process process) {
+
+        switch (process) {
+            case FOLLOWING:
+                return FOLLOW_REQUESTS_PER_DAY - getFollowRequestSentToday();
+        }
+        return totalListSize;
     }
 
     private void followButtonLogic(PotentialFollower pF, ProcessResult processResult) {
@@ -167,7 +185,7 @@ public class PotentialFollowersService {
             pF.setFollowRequestSentAtDate(LocalDate.now());
             processResult.incrementAndGetFollowed();
         } else {
-            logger.debug("I confirm that I do not follow anymore the: {}" ,pF.getId());
+            logger.debug("I confirm that I do not follow anymore the: {}", pF.getId());
             pF.setRemovalConfirmed(true);
             pF.setFollowRequestSentConfirmed(true);
             processResult.incrementAndGetConfirmedRemoved();
@@ -178,7 +196,7 @@ public class PotentialFollowersService {
 
         if (followRequestSentLessThanXDaysAgo(potentialFollower.getFollowRequestSentAtDate(), ProcessListService.NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER)) {
             potentialFollower.setFollowRequestSentConfirmed(true);
-            logger.debug("I confirm that the request was sent for user: {}" , potentialFollower.getId());
+            logger.debug("I confirm that the request was sent for user: {}", potentialFollower.getId());
             processResult.incrementAndGetConfirmedFollowing();
         } else {
             logger.debug(message);
@@ -212,9 +230,9 @@ public class PotentialFollowersService {
     /**
      * Best to be rolled after refreshingFollowers and removing followers. Basically last step.
      */
-    public void analiseFollowRequestResults() {
-        //TODO sa fiu atent la followings>followers cand vorbim de conturi de 100 de follower sau 1000 e f diferit
+    public String analiseFollowRequestResults() {
 
+        RESULT = new StringBuilder();
         /**
          Potential followers to whom I have sent a request and it is confirmed, and more than 3 days have passed*
          */
@@ -226,53 +244,56 @@ public class PotentialFollowersService {
          */
         List<PotentialFollower> allThatFollowedBack = potentialFollowersJpaRepository.getAllThatFollowedBack();
 
-        print(t -> true, "in total", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> true, "in total", allRequestedUsers, allThatFollowedBack);
         //followers
-        print(t -> t.getIsAccountPrivate() == true, "private accounts", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getIsAccountPrivate() == false, "NOT private accounts", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowers() < 500 && 0 < t.getFollowers(), "accounts with followers 0-500", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowers() < 1000 && 500 < t.getFollowers(), "accounts with followers 500-1000", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowers() < 1500 && 1000 < t.getFollowers(), "accounts with followers 1000-1500", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowers() < 2000 && 1500 < t.getFollowers(), "accounts with followers 1500-2000", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowers() < 2500 && 2000 < t.getFollowers(), "accounts with followers 2000-2500", allRequestedUsers, allThatFollowedBack);
-        print(t -> 2500 < t.getFollowers(), "accounts with followers 2500-INFINITE", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getIsAccountPrivate() == true, "private accounts", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getIsAccountPrivate() == false, "NOT private accounts", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowers() < 500 && 0 < t.getFollowers(), "accounts with followers 0-500", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowers() < 1000 && 500 < t.getFollowers(), "accounts with followers 500-1000", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowers() < 1500 && 1000 < t.getFollowers(), "accounts with followers 1000-1500", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowers() < 2000 && 1500 < t.getFollowers(), "accounts with followers 1500-2000", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowers() < 2500 && 2000 < t.getFollowers(), "accounts with followers 2000-2500", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> 2500 < t.getFollowers(), "accounts with followers 2500-INFINITE", allRequestedUsers, allThatFollowedBack);
 
         //following
-        print(t -> t.getFollowing() < 1000 && 500 < t.getFollowing(), "accounts with followings 500-1000", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowing() < 1500 && 1000 < t.getFollowing(), "accounts with followings 1000-1500", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowing() < 2000 && 1500 < t.getFollowing(), "accounts with followings 1500-2000", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowing() < 2500 && 2000 < t.getFollowing(), "accounts with followings 2000-2500", allRequestedUsers, allThatFollowedBack);
-        print(t -> 2500 < t.getFollowing(), "accounts with followings 2500-INFINITE", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < 1000 && 500 < t.getFollowing(), "accounts with followings 500-1000", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < 1500 && 1000 < t.getFollowing(), "accounts with followings 1000-1500", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < 2000 && 1500 < t.getFollowing(), "accounts with followings 1500-2000", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < 2500 && 2000 < t.getFollowing(), "accounts with followings 2000-2500", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> 2500 < t.getFollowing(), "accounts with followings 2500-INFINITE", allRequestedUsers, allThatFollowedBack);
 
         //posts
-        print(t -> t.getPosts() < 50 && 0 < t.getPosts(), "accounts with posts 0-50", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getPosts() < 100 && 50 < t.getPosts(), "accounts with posts 50-100", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getPosts() < 150 && 100 < t.getPosts(), "accounts with posts 100-150", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getPosts() < 250 && 150 < t.getPosts(), "accounts with posts 150-250", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getPosts() < 500 && 250 < t.getPosts(), "accounts with posts 250-500", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getPosts() < Integer.MAX_VALUE && 500 < t.getPosts(), "accounts with posts 500-INFINITE", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getPosts() < 50 && 0 < t.getPosts(), "accounts with posts 0-50", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getPosts() < 100 && 50 < t.getPosts(), "accounts with posts 50-100", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getPosts() < 150 && 100 < t.getPosts(), "accounts with posts 100-150", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getPosts() < 250 && 150 < t.getPosts(), "accounts with posts 150-250", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getPosts() < 500 && 250 < t.getPosts(), "accounts with posts 250-500", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getPosts() < Integer.MAX_VALUE && 500 < t.getPosts(), "accounts with posts 500-INFINITE", allRequestedUsers, allThatFollowedBack);
 
         //more following than followers
-        print(t -> t.getFollowing() > t.getFollowers(), "accounts with more following than followers (like Dora)", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() > t.getFollowers(), "accounts with more following than followers (like Dora)", allRequestedUsers, allThatFollowedBack);
 
         //more followers than followings
-        print(t -> t.getFollowing() < t.getFollowers(), "accounts with more followers than following (like raduk_)", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() < 500, "accounts with more followers than following (like raduk_) and followers between 0-500", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() < 1000 && t.getFollowers() > 500, "accounts with more followers than following (like raduk_) and followers between 500-1000", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() < 1500 && t.getFollowers() > 1000, "accounts with more followers than following (like raduk_) and followers between 1000-1500", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() < 2000 && t.getFollowers() > 1500, "accounts with more followers than following (like raduk_) and followers between 1500-2000", allRequestedUsers, allThatFollowedBack);
-        print(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() > 2000, "accounts with more followers than following (like raduk_) and followers between 2000-INFINITE", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < t.getFollowers(), "accounts with more followers than following (like raduk_)", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() < 500, "accounts with more followers than following (like raduk_) and followers between 0-500", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() < 1000 && t.getFollowers() > 500, "accounts with more followers than following (like raduk_) and followers between 500-1000", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() < 1500 && t.getFollowers() > 1000, "accounts with more followers than following (like raduk_) and followers between 1000-1500", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() < 2000 && t.getFollowers() > 1500, "accounts with more followers than following (like raduk_) and followers between 1500-2000", allRequestedUsers, allThatFollowedBack);
+        printAndAppendToResult(t -> t.getFollowing() < t.getFollowers() && t.getFollowers() > 2000, "accounts with more followers than following (like raduk_) and followers between 2000-INFINITE", allRequestedUsers, allThatFollowedBack);
+
+        return RESULT.toString();
     }
 
-    private void print(Predicate<PotentialFollower> filter, String
+    private void printAndAppendToResult(Predicate<PotentialFollower> filter, String
             introText, List<PotentialFollower> total, List<PotentialFollower> partOfTotal) {
-        logger.info(
-                "FOLLOWED " + introText + ": " +
-                        total.stream().filter(filter).collect(Collectors.toList()).size() +
-                        " -> THEY FOLLOWED BACK: " +
-                        partOfTotal.stream().filter(filter).collect(Collectors.toList()).size() + " ( "
-                        + getPercentage(total.stream().filter(filter).collect(Collectors.toList()),
-                        partOfTotal.stream().filter(filter).collect(Collectors.toList())) + " % )");
+        String message = "FOLLOWED " + introText + ": " +
+                total.stream().filter(filter).collect(Collectors.toList()).size() +
+                " -> THEY FOLLOWED BACK: " +
+                partOfTotal.stream().filter(filter).collect(Collectors.toList()).size() + " ( "
+                + getPercentage(total.stream().filter(filter).collect(Collectors.toList()),
+                partOfTotal.stream().filter(filter).collect(Collectors.toList())) + " % )";
+        logger.info(message);
+        RESULT.append("\n" + message);
     }
 
     private Integer getPercentage(List<PotentialFollower> total, List<PotentialFollower> partOfTotal) {
@@ -281,22 +302,26 @@ public class PotentialFollowersService {
         return 0;
     }
 
-    private boolean isNumberOfFollowsPerDayReached() {
+    public boolean isNumberOfRemovalsPerDayReached() {
 
-        if (getFollowRequestSentToday() >= FOLLOW_REQUESTS_PER_DAY) {
-            logger.info("TODAY I ALREADY REACHED MAXIMUM NUMBER OF FOLLOWED accounts ");
+        if (getRemovalsSentToday() >= REMOVALS_PER_DAY) {
+            logger.info("TODAY I ALREADY REACHED MAXIMUM NUMBER OF REMOVAL accounts ");
             return true;
         }
         return false;
     }
 
-    public boolean isNumberOfRemovalsPerDayReached() {
+    public Integer getRemovalsSentToday() {
         List<PotentialFollower> followRequestSentAtDate =
                 potentialFollowersService.getPotentialFollowers(
                         (r, q, c) -> c.equal(r.get("removedFromFollowersAtDate"), LocalDate.now()));
+        return followRequestSentAtDate.size();
+    }
 
-        if (followRequestSentAtDate.size() >= REMOVALS_PER_DAY) {
-            logger.info("TODAY I ALREADY REACHED MAXIMUM NUMBER OF REMOVAL accounts ");
+    private boolean isNumberOfFollowsPerDayReached() {
+
+        if (getFollowRequestSentToday() >= FOLLOW_REQUESTS_PER_DAY) {
+            logger.info("TODAY I ALREADY REACHED MAXIMUM NUMBER OF FOLLOWED accounts ");
             return true;
         }
         return false;
@@ -325,6 +350,6 @@ public class PotentialFollowersService {
 
     @Transactional
     public void updateFollowRequestSentConfirmed(Set<String> ids) {
-         potentialFollowersJpaRepository.updateFollowRequestSentConfirmed(ids);
+        potentialFollowersJpaRepository.updateFollowRequestSentConfirmed(ids);
     }
 }

@@ -16,8 +16,12 @@ import java.util.List;
 @Data
 @Service
 public class ProcessResultService {
+
     Logger logger = LoggerFactory.getLogger(ProcessResultService.class);
- 
+
+    @Autowired
+    private PotentialFollowersService potentialFollowersService;
+
     @Autowired
     private ProcessResultJpaRepository processResultJpaRepository;
 
@@ -52,7 +56,8 @@ public class ProcessResultService {
                 logger.info("I should now have followers: " +
                         (processResult.getConfirmedFollowing() - processResult.getFromTotalWeAppliedLogicOn()));
 
-                if (processResult.getTotalProcessedUsers() < processResult.getConfirmedFollowing() - 5) {
+                if (processResult.getTotalProcessedUsers() < processResult.getConfirmedFollowing() - 5
+                        && !potentialFollowersService.isNumberOfRemovalsPerDayReached()) {
                     throw new RuntimeException("The remove non follower process has failed!" +
                             " The list was not entirely processed.");
                 } else {
@@ -75,5 +80,10 @@ public class ProcessResultService {
         return processResultJpaRepository.
                 findAll(SpecificationUtil.getProcessResultsInNumberOfDays(numberOfDaysInterval).and(
                         SpecificationUtil.getProcessResultsByProcessType(process)));
+    }
+
+    public List<ProcessResult> getAllProcessesFromToday() {
+        return processResultJpaRepository.
+                findAll(SpecificationUtil.getProcessResultsInNumberOfDays(0));
     }
 }

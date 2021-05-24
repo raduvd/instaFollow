@@ -3,8 +3,6 @@ package ro.personal.home.instafollow;
 import lombok.Data;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import ro.personal.home.instafollow.enums.PageAddress;
@@ -12,7 +10,7 @@ import ro.personal.home.instafollow.service.*;
 
 @Data
 @SpringBootTest
-public class MainFlow {
+public class MainFlowTest {
 
     @Autowired
     private AccountService accountService;
@@ -29,14 +27,23 @@ public class MainFlow {
     @Autowired
     private PotentialFollowersService potentialFollowersService;
 
+    @Autowired
+    private MailService mailService;
+
     @Test
     public void wholeFlow() {
-        pageService.initializePage(PageAddress.INSTAGRAM_RAW, WebDriverUtil.RADU_VD_USERNAME, true);
-        processListService.refreshFollowers(true);
-        potentialFollowersService.step3RemoveOrFollow();
-        potentialFollowersService.step4Follow();
-        processListService.removeNonFollowers(1);
-        potentialFollowersService.analiseFollowRequestResults();
+        try {
+            pageService.initializePage(PageAddress.INSTAGRAM_RAW, WebDriverUtil.RADU_VD_USERNAME, true);
+            processListService.refreshFollowers(true);
+            potentialFollowersService.step3RemoveOrFollow();
+            potentialFollowersService.step4Follow();
+            processListService.removeNonFollowers(1);
+        } catch (Exception e) {
+            mailService.sendSimpleMessage("FAILURE", e.getMessage());
+        } finally {
+            mailService.sendSimpleMessage("SUCCESS",
+                    potentialFollowersService.analiseFollowRequestResults());
+        }
     }
 
     @Test
