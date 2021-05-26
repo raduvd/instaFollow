@@ -20,8 +20,8 @@
         </encoder>
     </appender>
 
-    <!-- LOG everything at INFO level in file-->
-    <root level="all">
+    <!-- LOG at debug level in file-->
+    <root level="debug">
         <appender-ref ref="RollingFile"/>
     </root>
 

@@ -170,13 +170,20 @@ public class PotentialFollowersService {
 
     private void followButtonLogic(PotentialFollower pF, ProcessResult processResult) {
         if (pF.getRemovedFromFollowersAtDate() == null) {
-
             if (WaitDriver.waitAndGetElement(true, WebDriverUtil.THIS_ACCOUNT_IS_PRIVATE) == null) {
                 //click on first picture and like it
                 List<WebElement> pagePictures = WaitDriver.waitAndGetElements(false, WebDriverUtil.PAGE_PICTURES);
                 pageService.clickByMovingOnElement(pagePictures.get(0));
                 pageService.waitForButtonAndClickIt(false, LIKE, UNLIKE);
                 pageService.waitForButtonAndClickIt(false, WebDriverUtil.CLOSE);
+            } else {
+                if (pF.getFollowRequestSentAtDate() != null) {
+                    /* If user is private and if request was already sent and we still have the FOLLOW button */
+                    logger.debug("User {} is private, and I will not sent a request again " +
+                            "because he may have refused the request and this " +
+                            "can be spam / and get blocked or reported. I am setting pageCanBeOpened=false", pF.getId());
+                    pF.setPageCanBeOpened(false);
+                }
             }
             //Follow
             pageService.waitForButtonAndClickIt(false, FOLLOW_BUTTON_PRIVATE_ACCOUNT, FOLLOW_BUTTON_NON_PRIVATE_ACCOUNT);
@@ -190,6 +197,7 @@ public class PotentialFollowersService {
             pF.setFollowRequestSentConfirmed(true);
             processResult.incrementAndGetConfirmedRemoved();
         }
+
     }
 
     private void removeOrConfirm(PotentialFollower potentialFollower, ProcessResult processResult, By locator, String message) {
