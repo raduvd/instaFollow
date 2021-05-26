@@ -320,8 +320,11 @@ public class ProcessListService {
     private Boolean isLimitReached(Process process) {
         switch (process) {
             case REMOVE_NON_FOLLOWERS -> {
-                logger.info("PROCESS REMOVE_NON_FOLLOWERS WAS STOPED DUE TO THE FACT THAT THE NUMBER REMOVAL PER DAY IS REACHED.");
-                return potentialFollowersService.isNumberOfRemovalsPerDayReached();
+                boolean numberOfRemovalsPerDayReached = potentialFollowersService.isNumberOfRemovalsPerDayReached();
+                if (numberOfRemovalsPerDayReached) {
+                    logger.info("PROCESS REMOVE_NON_FOLLOWERS WAS STOPED DUE TO THE FACT THAT THE NUMBER REMOVAL PER DAY IS REACHED.");
+                }
+                return numberOfRemovalsPerDayReached;
             }
         }
         return false;

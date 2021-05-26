@@ -83,7 +83,8 @@ public class ProcessResult implements Serializable {
             case "FOLLOWING":
                 return "FOLLOWING process has followed (" + this.followed + ")";
             case "REMOVE_NON_FOLLOWERS":
-                return "REMOVE_NON_FOLLOWERS process has removed (" + this.removed + ")";
+                return "REMOVE_NON_FOLLOWERS process has removed (" + this.fromTotalWeAppliedLogicOn + "). " +
+                        "And we processed: " + this.totalProcessedUsers;
             case "GET_NEW_POTENTIAL_FOLLOWERS":
                 return "GET_NEW_POTENTIAL_FOLLOWERS process has hovered and added in DB for one pic (" + this.fromTotalWeAppliedLogicOn + ")";
             default:
