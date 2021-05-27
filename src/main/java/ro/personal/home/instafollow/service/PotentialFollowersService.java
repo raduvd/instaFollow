@@ -176,23 +176,22 @@ public class PotentialFollowersService {
                 pageService.clickByMovingOnElement(pagePictures.get(0));
                 pageService.waitForButtonAndClickIt(false, LIKE, UNLIKE);
                 pageService.waitForButtonAndClickIt(false, WebDriverUtil.CLOSE);
-            } else {
-                if (pF.getFollowRequestSentAtDate() != null) {
-                    /* If user is private and if request was already sent and we still have the FOLLOW button */
-                    logger.debug("User {} is private, and I will not sent a request again " +
-                            "because he may have refused the request and this " +
-                            "can be spam / and get blocked or reported. I am setting pageCanBeOpened=false", pF.getId());
-                    pF.setPageCanBeOpened(false);
-                }
+            } else if (pF.getFollowRequestSentAtDate() != null) {
+                /* If user is private and if request was already sent and we still have the FOLLOW button */
+                logger.info("User {} is private, and I will not sent a request again " +
+                        "because he may have refused the request and this " +
+                        "can be spam / and get blocked or reported. I am setting pageCanBeOpened=false", pF.getId());
+                pF.setPageCanBeOpened(false);
+                return;
             }
             //Follow
             pageService.waitForButtonAndClickIt(false, FOLLOW_BUTTON_PRIVATE_ACCOUNT, FOLLOW_BUTTON_NON_PRIVATE_ACCOUNT);
-            logger.debug("******************************JUST FOLLOWED USER - {}", pF.getId());
+            logger.info("******************************JUST FOLLOWED USER - {}", pF.getId());
             pF.setIsFollowRequested(true);
             pF.setFollowRequestSentAtDate(LocalDate.now());
             processResult.incrementAndGetFollowed();
         } else {
-            logger.debug("I confirm that I do not follow anymore the: {}", pF.getId());
+            logger.info("I confirm that I do not follow anymore the: {}", pF.getId());
             pF.setRemovalConfirmed(true);
             pF.setFollowRequestSentConfirmed(true);
             processResult.incrementAndGetConfirmedRemoved();
@@ -204,10 +203,10 @@ public class PotentialFollowersService {
 
         if (followRequestSentLessThanXDaysAgo(potentialFollower.getFollowRequestSentAtDate(), ProcessListService.NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER)) {
             potentialFollower.setFollowRequestSentConfirmed(true);
-            logger.debug("I confirm that the request was sent for user: {}", potentialFollower.getId());
+            logger.info("I confirm that the request was sent for user: {}", potentialFollower.getId());
             processResult.incrementAndGetConfirmedFollowing();
         } else {
-            logger.debug(message);
+            logger.info(message);
             pageService.waitForButtonAndClickIt(false, locator);
             pageService.waitForButtonAndClickIt(true, WebDriverUtil.UNFOLLOW_CONFIRMATION);
             potentialFollower.setFollowBackRefused(true);

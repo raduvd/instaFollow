@@ -20,15 +20,11 @@
         </encoder>
     </appender>
 
-    <!-- LOG at debug level in file-->
-    <root level="debug">
+    <root level="ALL">
         <appender-ref ref="RollingFile"/>
     </root>
 
-    <!-- LOG only important at console -->
-    <root level="info">
+    <root level="INFO">
         <appender-ref ref="Console"/>
     </root>
-
-
 </configuration>

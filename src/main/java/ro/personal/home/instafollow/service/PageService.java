@@ -91,13 +91,13 @@ public class PageService {
 
         for (int i = 0; i < locatorsSize; i++) {
             try {
-                logger.debug("Trying to find element by {}" , locators[i].toString());
+                logger.info("Trying to find element by {}" , locators[i].toString());
                 WebElement element = parentElement.findElement(locators[i]);
-                logger.debug("Returning element found by: {}", locators[i].toString());
+                logger.info("Returning element found by: {}", locators[i].toString());
                 return element;
 
             } catch (Exception e) {
-                logger.debug("Element was not found BY: {}", locators[i].toString());
+                logger.info("Element was not found BY: {}", locators[i].toString());
                 if (i + 1 >= locatorsSize && !continueOnError)
                     throw new RuntimeException("The element was not found using the following locatos: " +
                             Arrays.stream(locators).map(by -> by.toString()).collect(Collectors.toList()));
@@ -156,13 +156,13 @@ public class PageService {
 
     public boolean goToPage(Boolean wait, String pageAddress) {
         int timeToWait = wait ? 25000 : 0;
-        logger.debug("------------------------------------ We will try to open the following link: " + pageAddress +
+        logger.info("------------------------------------ We will try to open the following link: " + pageAddress +
                 " after waiting milliseconds: {}" ,timeToWait);
         WaitDriver.sleepForMiliseconds(timeToWait);
         webDriver.get(pageAddress);
 
         if (wait && !isPageAvailable()) {
-            logger.debug("The page ({}) was unavailable.",  pageAddress);
+            logger.info("The page ({}) was unavailable.",  pageAddress);
             return false;
         }
         return true;

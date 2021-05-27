@@ -35,13 +35,13 @@ public class AccountService {
     }
 
     public String encode(String str) {
-        logger.debug("ENCODING STRING: {}", str);
+        logger.info("ENCODING STRING: {}", str);
         byte[] bytesEncoded = Base64.getEncoder().encode(str.getBytes());
         return new String(bytesEncoded);
     }
 
     public String decode(String str) {
-        logger.debug("DECODING STRING: {}",str);
+        logger.info("DECODING STRING: {}",str);
         byte[] valueDecoded = Base64.getDecoder().decode(str);
         return new String(valueDecoded);
     }

@@ -226,7 +226,7 @@ public class ProcessListService {
             List<Followers> followers = followerService.createFollowers(new ArrayList<>(followersFoundInWebDriver));
             processResultService.getProcessResultJpaRepository().saveAndFlush(processResult);
             logger.info("--------------------------WE ADDED IN DB FOLLOWERS: " + followers.size());
-            logger.debug("My Followers: " + followers);
+            logger.info("My Followers: " + followers);
             logger.info("The followers Found In Web Driver(" + followersFoundInWebDriver.size() + ") and followers number from my page("
                     + myFollowersNumber + ").");
 
@@ -252,7 +252,7 @@ public class ProcessListService {
         potentialFollower.setFollowing(following);
         potentialFollower.setPosts(posts);
 
-        logger.debug("PROFILE - {} - WITH FOLLOWERS ({}), FOLLOWING ({}), POSTS ({}), PRIVATE ACCOUNT ({}).",
+        logger.info("PROFILE - {} - WITH FOLLOWERS ({}), FOLLOWING ({}), POSTS ({}), PRIVATE ACCOUNT ({}).",
                 potentialFollower.getId(),
                 followers,
                 following,
@@ -347,11 +347,11 @@ public class ProcessListService {
 
             if (alreadyIteratedElements.size() != listSize - 1 &&
                     currentList.get(currentList.size() - 1) == listElement) {
-                logger.debug("----SCROLLING TO {} AND NOT PERFORMING ANY LOGIC", elementId);
+                logger.info("----SCROLLING TO {} AND NOT PERFORMING ANY LOGIC", elementId);
                 ((JavascriptExecutor) AppWebDriver.getWebDriver()).executeScript("arguments[0].scrollIntoView(true);", listElement);
                 WaitDriver.sleepForMiliseconds(2000);
             } else {
-                logger.debug("----MOVING and PERFORMING LOGIC FOR " + elementId);
+                logger.info("----MOVING and PERFORMING LOGIC FOR " + elementId);
                 returnedFromList.add(performListLogic(elementId, process, listElement));
                 alreadyIteratedElements.add(elementId);
             }
@@ -377,7 +377,7 @@ public class ProcessListService {
     private String likeListLogic(WebElement listElement, String userName) {
 
         if (potentialFollowersService.getOptionalById(userName).isPresent()) {
-            logger.debug("User is already in the DB we will not hover.");
+            logger.info("User is already in the DB we will not hover.");
             return StringUtils.EMPTY;
         } else {
             logger.info("Hovering...");
@@ -388,10 +388,10 @@ public class ProcessListService {
 
             if (isFollowerValid(potentialFollower)) {
                 potentialFollower.setIsRejectedDueToValidation(false);
-                logger.debug("USER IS VALID. WILL SAVE IN DB: " + potentialFollower.toString());
+                logger.info("USER IS VALID. WILL SAVE IN DB: " + potentialFollower.toString());
             } else {
                 potentialFollower.setIsRejectedDueToValidation(true);
-                logger.debug("USER IS NOT VALID. BUT STILL SAVING IN DB; " + potentialFollower.toString());
+                logger.info("USER IS NOT VALID. BUT STILL SAVING IN DB; " + potentialFollower.toString());
             }
 
             potentialFollower.setPageCanBeOpened(true);
@@ -406,7 +406,7 @@ public class ProcessListService {
     }
 
     private String followerListLogic(WebElement listElement, String userName) {
-        logger.debug("Processing user: " + userName);
+        logger.info("Processing user: " + userName);
         return StringUtils.EMPTY;
     }
 
@@ -433,7 +433,7 @@ public class ProcessListService {
     public boolean removeUserQuestionMark(String userId) {
 
         if (potentialFollowersService.isNumberOfRemovalsPerDayReached()) {
-            logger.debug("USER {} WAS *NOT* REMOVED BECAUSE THE NUMBER PER DAY REMOVALS *WAS* REACHED.", userId);
+            logger.info("USER {} WAS *NOT* REMOVED BECAUSE THE NUMBER PER DAY REMOVALS *WAS* REACHED.", userId);
             return false;
         }
 
@@ -442,14 +442,14 @@ public class ProcessListService {
         //We remove only users from potentialFollowers, not user added by me manually. So if this is empathy we do not remove.
         boolean isUserAPotentialFollower = potentialFollowerOptional.isPresent();
         if (!isUserAPotentialFollower) {
-            logger.debug("USER {} WAS *NOT* REMOVED BECAUSE HE IS *NOT* A POTENTIAL FOLLOWER (WAS ADDED MANUALLY BY ME).", userId);
+            logger.info("USER {} WAS *NOT* REMOVED BECAUSE HE IS *NOT* A POTENTIAL FOLLOWER (WAS ADDED MANUALLY BY ME).", userId);
             return false;
         }
 
         boolean wasFollowRequestSent = potentialFollowerOptional.get().getFollowRequestSentAtDate() != null;
 
         if (!wasFollowRequestSent) {
-            logger.debug("USER {} WAS *NOT* REMOVED BECAUSE THE THE FOLLOW REQUEST WAS NOT SENT", userId);
+            logger.info("USER {} WAS *NOT* REMOVED BECAUSE THE THE FOLLOW REQUEST WAS NOT SENT", userId);
             return false;
         }
 
@@ -457,13 +457,13 @@ public class ProcessListService {
         LocalDate currentTimeMinusXDays = LocalDate.now().minusDays(NR_OF_DAYS_BEFORE_REMOVING_FOLLOWER);
         boolean followRequestSentLessThan2DaysAgo = followRequestSentAtDate.isAfter(currentTimeMinusXDays);
         if (followRequestSentLessThan2DaysAgo) {
-            logger.debug("USER {} WAS *NOT* REMOVED BECAUSE THE REQUEST IS RECENT," +
+            logger.info("USER {} WAS *NOT* REMOVED BECAUSE THE REQUEST IS RECENT," +
                     " WE HAVE TO WAIT MORE BEFORE REMOVING. REQUEST DATE: {}", userId, followRequestSentAtDate);
             return false;
         }
 
         if (followerService.isUserInMyFollowerList(userId)) {
-            logger.debug("USER {} WAS NOT REMOVED BECAUSE HE IS IN MY FOLLOWERS LIST.", userId);
+            logger.info("USER {} WAS NOT REMOVED BECAUSE HE IS IN MY FOLLOWERS LIST.", userId);
             return false;
         }
         //If we reach here it means that the user is:
@@ -472,7 +472,7 @@ public class ProcessListService {
         //3. We have more to go until 50 REMOVALS today, and we can go on.
         //4. The user is not in my followers list (does not follow back). So we can safely delete him.
         //5. The user has a Follow request sent (this is obvious if I process the following list, but non the less this is checked too).
-        logger.debug("********************************WE CAN SAFELY DELETE THIS USER: " + userId);
+        logger.info("********************************WE CAN SAFELY DELETE THIS USER: " + userId);
         return true;
     }
 

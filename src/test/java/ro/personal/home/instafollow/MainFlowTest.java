@@ -3,6 +3,8 @@ package ro.personal.home.instafollow;
 import lombok.Data;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import ro.personal.home.instafollow.enums.PageAddress;
@@ -32,6 +34,7 @@ public class MainFlowTest {
 
     @Test
     public void wholeFlow() {
+        Exception failure = null;
         try {
             pageService.initializePage(PageAddress.INSTAGRAM_RAW, WebDriverUtil.RADU_VD_USERNAME, true);
             processListService.refreshFollowers(true);
@@ -39,11 +42,23 @@ public class MainFlowTest {
             potentialFollowersService.step4Follow();
             processListService.removeNonFollowers(1);
         } catch (Exception e) {
-            mailService.sendSimpleMessage("FAILURE", e.getMessage());
+            failure = e;
         } finally {
-            mailService.sendSimpleMessage("SUCCESS",
-                    potentialFollowersService.analiseFollowRequestResults());
+            if (failure == null) {
+                mailService.sendSimpleMessage("SUCCESS",
+                        potentialFollowersService.analiseFollowRequestResults());
+            } else {
+                mailService.sendSimpleMessage("FAILURE", failure.getMessage());
+            }
         }
+    }
+
+    Logger logger = LoggerFactory.getLogger(ProcessListService.class);
+
+    @Test
+    public void test() {
+        logger.info("XXXX info------");
+        logger.info("XXXX debug------");
     }
 
     @Test
