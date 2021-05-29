@@ -24,6 +24,7 @@ import ro.personal.home.instafollow.webDriver.webDriver.WaitDriver;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -107,10 +108,15 @@ public class ProcessListService {
 
         //Get the profile pictures
         List<WebElement> pagePictures = WaitDriver.waitAndGetElements(false, WebDriverUtil.PAGE_PICTURES);
+        List<String> pictureIds = pagePictures.stream().
+                map(element -> element.getAttribute("href")).collect(Collectors.toList());
 
         Integer previousListSize = Integer.valueOf(0);
-        for (WebElement picture : pagePictures) {
-
+        Integer counter = Integer.valueOf(0);
+        for (String pictureId : pictureIds) {
+            if (++counter > 10) {
+                throw new RuntimeException("I went trough 10 pictures already and something must be wrong.");
+            }
             int allUsersFromDBToFollow = potentialFollowersService.
                     getPotentialFollowersJpaRepository().getAllForFollowing().size();
             logger.info("allUsersFromDBToFollow: {}", allUsersFromDBToFollow);
@@ -121,12 +127,12 @@ public class ProcessListService {
                 break;
             }
 
-            ProcessedPicture processedPicture = getOrSavePictureEntity(picture, pageAddress);
+            ProcessedPicture processedPicture = getOrSavePictureEntity(pictureId, pageAddress);
             if (isPictureInvalid(processedPicture)) {
                 logger.info("The Picture was not processed because it was already processed.");
                 continue;
             }
-            pageService.clickByMovingOnElement(picture);
+            pageService.goToPage(false, WebDriverUtil.createPageAddress(pictureId));
 
             //OPEN LIST OF profiles that have LIKEd the picture
             pageService.waitForButtonAndClickIt(false, OTHERS_LIST, LIKE_LIST);
@@ -134,8 +140,10 @@ public class ProcessListService {
             Integer listSize = (Integer) pageService.getValueFromElement(false, ElementValue.NUMBER_WITH_K_COMA_OR_POINT, OTHERS_LIST_SIZE, LIKE_LIST_SIZE);
 
             if (listSize.equals(previousListSize)) {
-                throw new RuntimeException("Two lists with the same size? Something is wrong!"
+                logger.info("Two lists with the same size? Something is wrong!"
                         + listSize + " : " + previousListSize);
+                pageService.waitForButtonAndClickIt(false, WebDriverUtil.CLOSE);
+                continue;
             }
             previousListSize = listSize;
             ProcessResult processResult = processIgList(LIKES_LIST_USERNAMES, Process.GET_NEW_POTENTIAL_FOLLOWERS, listSize);
@@ -146,8 +154,6 @@ public class ProcessListService {
 
             processedPicture.setIsProcessed(true);
             processedPictureJpaRepository.saveAndFlush(processedPicture);
-            pageService.waitForButtonAndClickIt(false, WebDriverUtil.CLOSE);
-            WaitDriver.sleepForMiliseconds(2000);
         }
         logger.info("I have in DB potential followers valid for following: {}", potentialFollowersService.
                 getPotentialFollowersJpaRepository().getAllForFollowing().size());
@@ -476,9 +482,7 @@ public class ProcessListService {
         return true;
     }
 
-    private ProcessedPicture getOrSavePictureEntity(WebElement pictureFromProfile, PageAddress pageAddress) {
-
-        String pictureId = pictureFromProfile.getAttribute("href");
+    private ProcessedPicture getOrSavePictureEntity(String pictureId, PageAddress pageAddress) {
 
         logger.info("Processing... picture: " + pictureId);
 

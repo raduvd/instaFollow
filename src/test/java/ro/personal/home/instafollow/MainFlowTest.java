@@ -3,8 +3,6 @@ package ro.personal.home.instafollow;
 import lombok.Data;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import ro.personal.home.instafollow.enums.PageAddress;
@@ -51,14 +49,6 @@ public class MainFlowTest {
                 mailService.sendSimpleMessage("FAILURE", failure.getMessage());
             }
         }
-    }
-
-    Logger logger = LoggerFactory.getLogger(ProcessListService.class);
-
-    @Test
-    public void test() {
-        logger.info("XXXX info------");
-        logger.info("XXXX debug------");
     }
 
     @Test

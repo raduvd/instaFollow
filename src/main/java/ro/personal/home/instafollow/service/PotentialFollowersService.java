@@ -115,7 +115,6 @@ public class PotentialFollowersService {
                     PageAddress.PE_PLAIURI_ROMANESTI,
                     remainingFollowingsForToday);
         }
-
         processPotentialFollowers(
                 potentialFollowersJpaRepository.
                         getAllForFollowing(), this::isNumberOfFollowsPerDayReached, Process.FOLLOWING);
@@ -131,6 +130,7 @@ public class PotentialFollowersService {
                                            Supplier<Boolean> isNumberPerDayReached, Process processType) {
 
         ProcessResult processResult = new ProcessResult();
+        processResult.setTotalProcessedUsers(potentialFollowersToIterate.size());
         logger.info("About to open pages and process them: " + potentialFollowersToIterate.size());
 
         int remaining = getRemaining(potentialFollowersToIterate.size(), processType);

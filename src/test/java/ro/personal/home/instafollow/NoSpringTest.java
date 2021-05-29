@@ -8,9 +8,6 @@ import ro.personal.home.instafollow.persistance.repository.FollowersJpaRepositor
 import ro.personal.home.instafollow.service.FollowerService;
 import ro.personal.home.instafollow.service.ProcessListService;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Optional;
 
 public class NoSpringTest {
@@ -46,13 +43,4 @@ public class NoSpringTest {
         Assert.assertTrue(processListService.validateUserInfo(1501, 1368, 2));
         Assert.assertTrue(processListService.validateUserInfo(1501, 1302, 2));
     }
-
-    @Test
-    public void test() {
-        LocalTime midnight = LocalTime.MIDNIGHT.plusHours(1);
-        LocalDate today = LocalDate.now();
-        LocalDateTime intervalOfDaysMidnight = LocalDateTime.of(today.minusDays(0), midnight);
-        System.out.println(intervalOfDaysMidnight);
-    }
-
 }

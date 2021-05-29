@@ -78,7 +78,7 @@ public class ProcessResult implements Serializable {
             case "REFRESH_FOLLOWERS":
                 return "REFRESH_FOLLOWERS process has found followers --> " + this.totalProcessedUsers;
             case "REMOVING_OR_FOLLOWING":
-                return "REMOVING_OR_FOLLOWING process has removed (" + this.removed +
+                return "REMOVING_OR_FOLLOWING process (" + this.totalProcessedUsers + ") has removed (" + this.removed +
                         ") and followed (" + this.followed + ")";
             case "FOLLOWING":
                 return "FOLLOWING process has followed (" + this.followed + ")";
