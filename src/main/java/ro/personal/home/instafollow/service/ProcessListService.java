@@ -132,7 +132,7 @@ public class ProcessListService {
                 logger.info("The Picture was not processed because it was already processed.");
                 continue;
             }
-            pageService.goToPage(false, WebDriverUtil.createPageAddress(pictureId));
+            pageService.goToPage(false, pictureId);
 
             //OPEN LIST OF profiles that have LIKEd the picture
             pageService.waitForButtonAndClickIt(false, OTHERS_LIST, LIKE_LIST);

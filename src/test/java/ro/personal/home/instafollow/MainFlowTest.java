@@ -41,6 +41,7 @@ public class MainFlowTest {
             processListService.removeNonFollowers(1);
         } catch (Exception e) {
             failure = e;
+            throw new RuntimeException(e);
         } finally {
             if (failure == null) {
                 mailService.sendSimpleMessage("SUCCESS",
