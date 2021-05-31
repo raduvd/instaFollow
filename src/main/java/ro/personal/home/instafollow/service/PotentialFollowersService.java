@@ -55,8 +55,10 @@ public class PotentialFollowersService {
     @Autowired
     private ProcessResultService processResultService;
 
-    private static final Integer REMOVALS_PER_DAY = 100;
-    private static final Integer FOLLOW_REQUESTS_PER_DAY = 100;
+    private static final Integer REMOVALS_PER_DAY = 120;
+    private static final Integer FOLLOW_REQUESTS_PER_DAY = 120;
+    public static LocalDate ANALYSE_FROM_DATE = LocalDate.of(2021, 1, 1);
+
     /**
      * This will go back from an element from USERNAMES_FROM_LIST to its correspon
      */
@@ -237,19 +239,23 @@ public class PotentialFollowersService {
     /**
      * Best to be rolled after refreshingFollowers and removing followers. Basically last step.
      */
-    public String analiseFollowRequestResults() {
+    public String analiseFollowRequestResults(LocalDate until) {
 
         RESULT = new StringBuilder();
+        RESULT.append("\n" + "THE ANALYSIS IS FROM DATE " + ANALYSE_FROM_DATE + " UNTIL NOW.");
         /**
          Potential followers to whom I have sent a request and it is confirmed, and more than 3 days have passed*
          */
         List<PotentialFollower> allRequestedUsers = potentialFollowersJpaRepository.getAllRequestedUsers();
-
+        allRequestedUsers = allRequestedUsers.stream().filter(
+                p -> p.getFollowRequestSentAtDate().isAfter(until)).collect(Collectors.toList());
         /**
          Potential followers to whom I have sent a request and it is confirmed, and more than 3 days have passed,
          and they are in the follower table*
          */
         List<PotentialFollower> allThatFollowedBack = potentialFollowersJpaRepository.getAllThatFollowedBack();
+        allThatFollowedBack = allThatFollowedBack.stream().filter(
+                p -> p.getFollowRequestSentAtDate().isAfter(until)).collect(Collectors.toList());
 
         printAndAppendToResult(t -> true, "in total", allRequestedUsers, allThatFollowedBack);
         //followers

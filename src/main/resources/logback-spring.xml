@@ -18,9 +18,10 @@
         <encoder>
             <pattern>%d %-5level [%thread] %logger{0}: %msg%n</pattern>
         </encoder>
+        <append>true</append>
     </appender>
 
-    <root level="ALL">
+    <root level="INFO">
         <appender-ref ref="RollingFile"/>
     </root>
 
