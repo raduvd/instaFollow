@@ -95,7 +95,6 @@ public class ProcessListService {
 
     public void tempCheckIsAccountPrivate() {
     }
-
     /**
      * @param pageAddress             Ex: 'Pe Plaiuri Romanesti' profile page, from where I will get a the last post and check the users that have liked it.
      * @param targetNumberOfFollowers

@@ -6,6 +6,13 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /*
 THE APP SERVICES ARE WORKING JUST SOME DETAILS / tasks / improvements:
+//TODO the process list process is failing something has changed maybe
+//TODO I get banned by instagram more offten as a solution:
+    //eliminate the follow process and try to follow when you process the like list
+    //confirm the followings when you go over the followers list
+    //if some of the followings sending sent when processing the like list weere not registered it means that the user is not in the following list, so get all and this time only go manually on the page with the FOLLOW process
+    //do not follow private if you do this because it is not consistent
+    //make a logic to also like the first picture of the user that you will follow
 //TODO DO NOT WORK ON THIS ANY MORE, I HAVE SPENT A LOT!! MAXIMUM AN HOUR ONCE A WEEK + and small debug!!!
 //TODO ANALIZE PERIODICALLY
    - check in DB how many removals are made in the REMOVE_NON_FOLLOWER process. If is zero or low, make the interval bigger, run more rarely

@@ -55,8 +55,8 @@ public class PotentialFollowersService {
     @Autowired
     private ProcessResultService processResultService;
 
-    private static final Integer REMOVALS_PER_DAY = 120;
-    private static final Integer FOLLOW_REQUESTS_PER_DAY = 120;
+    private static final Integer REMOVALS_PER_DAY = 100;
+    private static final Integer FOLLOW_REQUESTS_PER_DAY = 90;
     public static LocalDate ANALYSE_FROM_DATE = LocalDate.of(2021, 1, 1);
 
     /**

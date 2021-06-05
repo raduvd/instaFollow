@@ -40,10 +40,8 @@ public class MainFlowTest {
         try {
             pageService.initializePage(PageAddress.INSTAGRAM_RAW, WebDriverUtil.RADU_VD_USERNAME, true);
             processListService.refreshFollowers(true);
-            //I comented this out because the I was blocked by instagram because to many requests, this is something that can be removed
-            //potentialFollowersService.step3RemoveOrFollow();
-            potentialFollowersService.step4Follow();
             processListService.removeNonFollowers(0);
+            potentialFollowersService.step4Follow();
         } catch (Exception e) {
             failure = e;
             logger.error(e.getMessage(), e);
